@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+import sklearn
 from sklearn.linear_model import LinearRegression
 from scipy import interpolate
 from scipy.io import loadmat
