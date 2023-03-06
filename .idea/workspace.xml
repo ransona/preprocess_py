@@ -5,11 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cd4730f0-93b0-4aa1-a959-b79f5840c981" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/other.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/preprocessExperiment.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/preprocess_python.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/preprocess_py.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/preprocess_py.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/preprocess_python.py" beforeDir="false" afterPath="$PROJECT_DIR$/preprocess_python.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -90,6 +87,9 @@
       <workItem from="1677498602736" duration="2651000" />
       <workItem from="1677501306844" duration="8473000" />
       <workItem from="1677528512995" duration="3595000" />
+      <workItem from="1677618520908" duration="3244000" />
+      <workItem from="1677665574604" duration="4024000" />
+      <workItem from="1677706700531" duration="4077000" />
     </task>
     <servers />
   </component>
@@ -114,9 +114,14 @@
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
+    <watches-manager>
+      <configuration name="PythonConfigurationType">
+        <watch expression="allStimTypes_mat" />
+      </configuration>
+    </watches-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/preprocess_py$preprocess_python.coverage" NAME="preprocess_python Coverage Results" MODIFIED="1677529335278" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/preprocess_py$preprocess_python.coverage" NAME="preprocess_python Coverage Results" MODIFIED="1677665608729" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/preprocess_py$preprocessExperiment.coverage" NAME="preprocessExperiment Coverage Results" MODIFIED="1677498797743" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

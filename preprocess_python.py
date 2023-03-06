@@ -155,48 +155,35 @@ expData = loadmat(os.path.join(exp_dir, expID + '_stim.mat'))
 stims = expData['expDat']['stims']
 stims = stims[0][0][0]
 
-n_stim_conditions = stims.size
-
+#2022-10-19_08_ESMT101_stim_order.csv
+stim_info = pd.read_csv(os.path.join(exp_dir, expID + '_stim.csv'))
+stim_order = pd.read_csv(os.path.join(exp_dir, expID + '_stim_order.csv'), header=None)
 
 #stims[features][0=feats,1=reps][0][1][vals,params,type][0]
 # cycle through each stimulus condition to find which has most features
 
 # make a matrix for csv output of trial onset time and trial stimulus type
 # check number of trial onsets matches between bonvision and bGUI
-if len(trialOnsetTimesTL) != len(expDat['stimOrder']):
+if len(trialOnsetTimesTL) != stim_order.shape[0]:
     raise ValueError(
         'Number of trial onsets doesn\'t match between bonvision and bGUI - there is a likely logging issue')
-trialTimeMatrix = np.column_stack((trialOnsetTimesTL, expDat['stimOrder']))
+
+# make the matrix of trial onset times
+trialTimeMatrix = np.column_stack((trialOnsetTimesTL, stim_order.values))
 
 # store the params of each stim conditions in a csv
 allStimTypes_mat = []
-
-for iStimType in range(len(expDat['stims'])):
-    # within each stim are features, i.e. gratings or movies
-    for iFeature in range(len(expDat['stims'][iStimType]['features'])):
-        allStimTypes_mat.append([iStimType + 1, iFeature + 1])
-        # cycle through parameters of stim feature
-        if expDat['stims'][iStimType]['features'][iFeature]['name'][0] == 'grating':
-            param_list = paramNames_gratings[3:]
-            allStimTypes_mat[-1].append('0')
-        elif expDat['stims'][iStimType]['features'][iFeature]['name'][0] == 'movie':
-            param_list = paramNames_video[3:]
-            allStimTypes_mat[-1].append('1')
-        for iParam in range(len(param_list)):
-            if param_list[iParam] == 'size':
-                param_number = \
-                np.where(np.array(expDat['stims'][iStimType]['features'][iFeature]['params']) == 'width')[0][0]
-            else:
-                param_number = \
-                np.where(np.array(expDat['stims'][iStimType]['features'][iFeature]['params']) == param_list[iParam])[0][
-                    0]
-            allStimTypes_mat[-1].append(expDat['stims'][iStimType]['features'][iFeature]['vals'][param_number])
-
 # Add running trace
-Encoder = pd.read_csv(os.path.join(expRootMeta, expID + '_Encoder.csv'))
-Encoder.columns = ['Frame', 'Timestamp', 'Trial', 'Position']
+Encoder = pd.read_csv(os.path.join(exp_dir, expID + '_Encoder.csv'), names=['Frame', 'Timestamp', 'Trial', 'Position'],
+                           header=None, skiprows=[0]) #, dtype={'Frame':np.float32, 'Timestamp':np.float32, 'Trial':np.int64, 'Position':np.int64})
 wheelPos = Encoder.Position.values
-wheelTimestamps = mdl1.predict(Encoder.Timestamp.values)
+# deal with wrap around of rotary encoder position
+wheelPosDif = np.diff(wheelPos)
+wheelPosDif[wheelPosDif > 50000] -= 2**16
+wheelPosDif[wheelPosDif < -50000] += 2**16
+wheelPos = np.cumsum(wheelPosDif)
+wheelPos=np.append(wheelPos,wheelPos[-1])
+wheelTimestamps = mdl1.predict(Encoder.Timestamp.values.reshape(-1,1))
 # Resample wheel to linear timescale
 wheelLinearTimescale = np.arange(wheelTimestamps[0], wheelTimestamps[-1], 0.01)
 f = interpolate.interp1d(wheelTimestamps, wheelPos, kind='linear')
@@ -205,13 +192,21 @@ wheelPos2 = pd.Series(f(wheelLinearTimescale)).rolling(window=50, center=True).m
 wheelSpeed = ((np.insert(np.diff(wheelPos2.values) * -1, 0, 0) * (62 / 1024)) * 100)
 
 # Save data
-bvDataRoot = os.path.join(expRootLocal, 'bonsai')
+bvDataRoot = os.path.join(exp_dir_processed, 'bonsai')
 if not os.path.exists(bvDataRoot):
     os.mkdir(bvDataRoot)
-np.savetxt(os.path.join(recordingsRoot, 'WheelPos.csv'), np.column_stack((wheelLinearTimescale, wheelPos2)),
+np.savetxt(os.path.join(exp_dir_processed_recordings, 'WheelPos.csv'), np.column_stack((wheelLinearTimescale, wheelPos2)),
            delimiter=',')
-np.savetxt(os.path.join(recordingsRoot, 'WheelSpeed.csv'), np.column_stack((wheelLinearTimescale, wheelSpeed)),
+np.savetxt(os.path.join(exp_dir_processed_recordings, 'WheelSpeed.csv'), np.column_stack((wheelLinearTimescale, wheelSpeed)),
            delimiter=',')
-np.savetxt(os.path.join(bvDataRoot, 'Trials.csv'), trialTimeMatrix, delimiter=',')
+# output a csv file which contains dataframe of all trials with first column showing trial onset time
 
+#np.savetxt(os.path.join(bvDataRoot, 'Trials.csv'), trialTimeMatrix, delimiter=',')
 
+# read the all trials file, append trial onset times to first column (trialOnsetTimesTL)
+all_trials = pd.read_csv(os.path.join(exp_dir, expID + '_all_trials.csv'))
+all_trials.insert(0,'time',trialOnsetTimesTL)
+pd.DataFrame.to_csv(os.path.join(exp_dir_processed, expID + '_all_trials.csv'),)
+all_trials.to_csv(os.path.join(exp_dir_processed, expID + '_all_trials.csv'), index=False)
+
+# next up process ca signals!
