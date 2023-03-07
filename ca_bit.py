@@ -68,6 +68,10 @@ if os.path.exists(os.path.join(exp_dir, expID + '_Timeline.mat')):
     Timeline = Timeline['timelineSession']
     print('Meta data found in Remote_Repository')
 
+# get timeline file in a usable format after importing to python
+tl_chNames = Timeline['chNames'][0][0][0][0:]
+tl_daqData = Timeline['daqData'][0,0]
+tl_time    = Timeline['time'][0][0]
 ## THIS IS THE BIT FROM THE COMPLETE PIPELINE SCRIPT ^
 
 # check suite2p folder exists to be processed
@@ -110,20 +114,20 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
         acqNumAveragedFrames = 1
     
     # determine which channel has frame timing pulses
-    neuralFramesIdx  = np.where(np.isin(Timeline.chNames, 'MicroscopeFrames'))[0][0]
-    neuralFramesPulses = Timeline.daqData[:,neuralFramesIdx]>1
+    neuralFramesIdx = np.where(np.isin(tl_chNames, 'MicroscopeFrames'))[0][0]
+    neuralFramesPulses = np.squeeze((tl_daqData[:,neuralFramesIdx]>1).astype(int))
     # divide the frame counter by the number of depths & averaging factor.
     #Timeline.rawDAQData(:,neuralFramesIdx)=ceil(Timeline.rawDAQData(:,neuralFramesIdx)/depthCount/acqNumAveragedFrames);
-    
+
     # determine time of each frame
-    frameTimes = Timeline.time[np.where(np.diff(neuralFramesPulses)==1)[0]]
+    frameTimes = np.squeeze(tl_time)[np.where(np.diff(neuralFramesPulses)==1)[0]]
     framePulsesPerDepth = len(frameTimes)/len(dataPath)
     frameRate = 1/np.median(np.diff(frameTimes))
     
     # determine timeline times when we want the Ca signal of each cell
     # +1 and -1 are because we want to make sure we only include frame
     # times which are available at all depths
-    outputTimes = np.arange(frameTimes[0]+1, Timeline.time[-1]-1, 1/resampleFreq)
+    outputTimes = np.arange(frameTimes[0]+1, frameTimes[-1]-1, 1/resampleFreq)
     
     for iCh in range(len(dataPath)):
         alldF[iCh] = []
