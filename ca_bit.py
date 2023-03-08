@@ -4,6 +4,8 @@ import pandas as pd
 import sklearn
 from sklearn.linear_model import LinearRegression
 from scipy import interpolate
+from scipy import signal
+from scipy import ndimage
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 
@@ -80,12 +82,12 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
     resampleFreq = 30
     neuropilWeight = 0.7
     
-    alldF = []
-    allF = []
-    allSpikes = []
-    allDepths = []
-    allRoiPix = []
-    allRoiMaps = []
+    alldF = {}
+    allF = {}
+    allSpikes = {}
+    allDepths = {}
+    allRoiPix = {}
+    allRoiMaps = {}
     
     # this will be used to make all recordings 2 secs shorter than the
     # first ca trace processed to ensure all chs and depths are the same length
@@ -130,48 +132,58 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
     outputTimes = np.arange(frameTimes[0]+1, frameTimes[-1]-1, 1/resampleFreq)
     
     for iCh in range(len(dataPath)):
-        alldF[iCh] = []
-        allF[iCh] = []
-        allSpikes[iCh] = []
-        allDepths[iCh] = []
-        allFOV[iCh] = []
+        alldF[iCh] = np.array([])
+        allF[iCh] = np.array([])
+        allSpikes[iCh] = np.array([])
+        allDepths[iCh] = np.array([])
+
         for iDepth in range(depthCount):
-            allRoiPix[iCh][iDepth+1] = []
-            allRoiMaps[iCh][iDepth+1] = []
+            allRoiPix[iCh] = {}
+            allRoiPix[iCh][iDepth] = np.array([])
+            allRoiMaps[iCh] = {}
+            allRoiMaps[iCh][iDepth] = np.array([])
             # load s2p data
-            Fall = loadmat(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'Fall.mat'))
+            # check if the big npy file exists and if so load that (this is the non-trucated file, where as the truncated one is the one used for local curation using suite2p)
+            if os.path.exists(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'F_big.npy')):
+                Fall = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'F_big.npy'))
+                Fneu = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'Fneu_big.npy'))
+                spks = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'spks_big.npy'))
+            else:
+                Fall = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'F.npy'))
+                Fneu = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'Fneu.npy'))
+                spks = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'spks.npy'))
+            s2p_stat = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'stat.npy'), allow_pickle=True)
+            s2p_ops = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'ops.npy'), allow_pickle=True).item()
             # check for mismatch between frames trigs and frames in tiff
-            if abs(framePulsesPerDepth-len(Fall['F'][0]))/max([framePulsesPerDepth,len(Fall['F'][0])]) > 0.01:
-                pcDiff = round(abs(len(frameTimes)-len(Fall['F'][0]))/max([len(frameTimes),len(Fall['F'][0])]) * 100)
-                messagebox.showwarning('Warning', 'There is a worrying mismatch between between frames trigs and frames in tiff - ' + str(pcDiff) + '% difference')
-                raise Exception('There is a worrying mismatch between between frames trigs and frames in tiff - ' + str(pcDiff) + '% difference')
+            if abs(framePulsesPerDepth-Fall.shape[1])/max([framePulsesPerDepth,Fall.shape[1]]) > 0.01:
+                pcDiff = round(abs(framePulsesPerDepth-Fall.shape[1])/max([framePulsesPerDepth,Fall.shape[1]]) * 100)
+                raise Exception('There is a mismatch between between frames trigs and frames in tiff - ' + str(pcDiff) + '% difference')
             # load numpy file containing cell classification
             cellValid = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'iscell.npy'))
+            cellValid = cellValid[:,0]
             # overall video contamination subtraction
-            # ADD BACK THESE 3 LINES
-            binpath = os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'data.bin')
-            meanFrameTimecourse = loadSuite2PVideoMeanFrame(binpath, np.shape(Fall['ops']['meanImg']))
-            meanFrameTimecourse = meanFrameTimecourse - np.min(meanFrameTimecourse)
-            # REMOVE THIS LINE
-            #meanFrameTimecourse = np.zeros([1,len(Fall['F'][0])])
-            
+
+            if Fneu.shape[0] == 0:
+                # then there are no rois detected in the plane
+                meanFrameTimecourse = np.zeros([1,Fall.shape[0]])
+            else:
+                # RECALC this using median of all neuropils
+                meanFrameTimecourse = np.median(Fneu,0)
+                meanFrameTimecourse = meanFrameTimecourse - min(meanFrameTimecourse)
             # check if any roi Fs are all zero. s2p sometimes throws these
             # up for some reason. if these are found set iscell to false
-            zeroROIs = np.max(Fall['F'], axis=1)==0 & np.min(Fall['F'], axis=1)==0
+            zeroROIs = ((np.max(Fall, axis=1) == 0) & (np.min(Fall, axis=1) == 0)).astype(int)
+
             if np.sum(zeroROIs) > 0:
                 print('Warning: '+str(np.sum(zeroROIs))+' zero flat lined rois...')
-                # this was the old way of dealing with them
-                # firstValid = np.where(zeroROIs==0)[0][0]
-                # Fall['F'][zeroROIs,:] = np.tile(Fall['F'][firstValid,:], (np.sum(zeroROIs),1))
-                cellValid[zeroROIs, 0] = 0
-                cellValid[zeroROIs, 1] = 1
+                cellValid[np.where(zeroROIs==1)] = 0
 
             # find cells which are part of merges and set iscell to 0
             # this refers to merges in suite2p
             totalMerges = 0
-            for iCell in range(len(Fall['stat'])):
-                if 'ismerge' in Fall['stat'][iCell]:
-                    if Fall['stat'][iCell]['inmerge'] == 1:
+            for iCell in range(len(s2p_stat)):
+                if 'ismerge' in s2p_stat[iCell]:
+                    if s2p_stat[iCell]['inmerge'] == 1:
                         # then the cell is included in a merged roi
                         cellValid[iCell] = 0
                         totalMerges = totalMerges + 1
@@ -181,70 +193,75 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
 
             # remove cells with iscell = 0 but keep record of original
             # suite2p output cell numbers
-            Fneu = Fall['Fneu'][cellValid[:,0]==1, :]
-            Fa = Fall['F'][cellValid[:,0]==1, :]
-            Spks = Fall['spks'][cellValid[:,0]==1, :]
-            s2pIndices = np.where(cellValid[:,0]==1)[0]
+            # this is the valid neuropil / F / Spks
+            Fneu_valid = np.squeeze(Fneu[np.where(cellValid==1), :])
+            F_valid = np.squeeze(Fall[np.where(cellValid==1), :])
+            Spks = np.squeeze(spks[np.where(cellValid==1), :])
+            s2pIndices = np.where(cellValid==1)
             xpix, ypix = [], []
-            validCellIDs = np.where(cellValid[:,0]==1)[0]
-
+            validCellIDs = np.where(cellValid==1)[0]
+            # this is to later store the x and ypix of each valid cell
             for iCell in range(len(validCellIDs)):
                 currentCell = validCellIDs[iCell]
-                xpix.append(Fall['stat'][currentCell]['xpix'])
-                ypix.append(Fall['stat'][currentCell]['ypix'])
+                xpix.append(s2p_stat[currentCell]['xpix'])
+                ypix.append(s2p_stat[currentCell]['ypix'])
 
             # remove potential stimulus artifact - i.e. mean of frame which
             # is extracted above
-            Fneu = Fneu - np.tile(meanFrameTimecourse, (Fneu.shape[0], 1))
-            Fa = Fa - np.tile(meanFrameTimecourse, (Fa.shape[0], 1))
+            Fneu_valid = Fneu_valid - np.tile(meanFrameTimecourse, (Fneu_valid.shape[0], 1))
+            F_valid = F_valid - np.tile(meanFrameTimecourse, (F_valid.shape[0], 1))
 
             # neuropil subtraction
-            F = Fa - (Fneu * neuropilWeight)
+            F_valid = F_valid - (Fneu_valid * neuropilWeight)
 
             # Ensure min(corrected F) > 10
-            FMins = np.min(F, axis=1)
-            plt.figure()
+            FMins = np.min(F_valid, axis=1)
             plt.subplot(1, 2, 1)
             plt.hist(FMins)
             plt.title(['Distribution of original', 'F values of ROIS'])
-            
+
             if np.min(FMins) < 20:
                 print('Frame mean and neuropil subtraction give ROIs with F < 20')
                 print('Offsetting all F by', (np.min(FMins)*-1)+20)
-                F = F + (np.min(FMins)*-1)+20
+                F_valid = F_valid + (np.min(FMins)*-1)+20
                 
-            FMins = np.min(F, axis=1)
+            FMins = np.min(F_valid, axis=1)
             plt.subplot(1, 2, 2)
             plt.hist(FMins)
             plt.title(['Distribution of F values', 'of ROIS after forcing > 20'])
             plt.draw()
 
-            # do merge was removed from here
+            # do merge was removed from here - this was bill's code for merging correlated rois
             # what to do if not merging
             # make a roi map for the depth that can be used for longitudinal imaging etc
             roiPix = []
             # make a blank roi map
-            roiMap = np.zeros(np.shape(Fall['ops']['meanImg']))
-            for iRoi in range(F.shape[0]):
+            roiMap = np.zeros(np.shape(s2p_ops['meanImg']))
+            for iRoi in range(F_valid.shape[0]):
                 # collect pix in ROI
-                roiPix.append(np.ravel_multi_index((ypix[iRoi]+1,xpix[iRoi]+1), np.shape(Fall['ops']['meanImg'])))
+                roiPix.append(np.ravel_multi_index((ypix[iRoi]+1,xpix[iRoi]+1), np.shape(s2p_ops['meanImg'])))
                 # label ROI map
                 roiMap[ypix[iRoi], xpix[iRoi]] = iRoi+1
-
+            plt.figure
+            plt.imshow(roiMap), plt.show()
             # crop F down to above established max frames
             # F = F[:, :expFrameLength]
 
             # dF/F calculation
-            smoothingWindowSize = 100
+            # this window should equate to 100 secs
+            smoothingWindowSize = 100 * resampleFreq
             kernel = np.ones((1, smoothingWindowSize)) / smoothingWindowSize
-            smoothed = signal.convolve2d(F, kernel, mode='same')
+            smoothed = signal.convolve2d(F_valid, kernel, mode='same')
             # remove edge effects
-            smoothed[:, :smoothingWindowSize] = np.tile(smoothed[:, smoothingWindowSize+1], [1, smoothingWindowSize])
-            smoothed[:, -smoothingWindowSize+1:] = np.tile(smoothed[:, -smoothingWindowSize-1], [1, smoothingWindowSize])
+            # at start
+            smoothed[:, :smoothingWindowSize] = np.tile(smoothed[:, smoothingWindowSize+1].reshape(smoothed.shape[0],1), [1, smoothingWindowSize])
+            smoothed[:, -smoothingWindowSize:] = np.tile(smoothed[:, -smoothingWindowSize-1].reshape(smoothed.shape[0],1), [1, smoothingWindowSize])
             # replace nans with large values (so they don't get picked up as mins)
             smoothed[np.isnan(smoothed)] = np.max(smoothed)*2
             baseline = ndimage.grey_erosion(smoothed, footprint=np.ones((1, smoothingWindowSize)))
-            # calculate dF/F
+            plt.figure,plt.plot(baseline[20,:]),plt.plot(smoothed[20,:]), plt.show
+
+            # # calculate dF/F
             dF = (F-baseline) / baseline
             # get times of each frame
             depthFrameTimes = frameTimes[iDepth+1:depthCount:len(frameTimes)]
@@ -267,7 +284,6 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
             allRoiMaps[iCh][iDepth+1] = roiMap
 
             allFOV[iCh] = Fall['ops']['meanImg']
-
 
     print('Saving 2-photon data...')
 
