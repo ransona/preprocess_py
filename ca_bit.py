@@ -8,6 +8,7 @@ from scipy import signal
 from scipy import ndimage
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
+import pickle
 
 # check if running local or colab
 try:
@@ -81,13 +82,14 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
     doMerge = False
     resampleFreq = 30
     neuropilWeight = 0.7
-    
+    # initiate these as dict:
     alldF = {}
     allF = {}
     allSpikes = {}
     allDepths = {}
     allRoiPix = {}
     allRoiMaps = {}
+    allFOV = {}
     
     # this will be used to make all recordings 2 secs shorter than the
     # first ca trace processed to ensure all chs and depths are the same length
@@ -123,8 +125,9 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
 
     # determine time of each frame
     frameTimes = np.squeeze(tl_time)[np.where(np.diff(neuralFramesPulses)==1)[0]]
-    framePulsesPerDepth = len(frameTimes)/len(dataPath)
+    framePulsesPerDepth = len(frameTimes)/depthCount
     frameRate = 1/np.median(np.diff(frameTimes))
+    frameRatePerPlane = frameRate/depthCount
     
     # determine timeline times when we want the Ca signal of each cell
     # +1 and -1 are because we want to make sure we only include frame
@@ -132,16 +135,13 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
     outputTimes = np.arange(frameTimes[0]+1, frameTimes[-1]-1, 1/resampleFreq)
     
     for iCh in range(len(dataPath)):
-        alldF[iCh] = np.array([])
-        allF[iCh] = np.array([])
-        allSpikes[iCh] = np.array([])
-        allDepths[iCh] = np.array([])
 
         for iDepth in range(depthCount):
             allRoiPix[iCh] = {}
-            allRoiPix[iCh][iDepth] = np.array([])
+            #allRoiPix[iCh][iDepth] = np.array([])
             allRoiMaps[iCh] = {}
-            allRoiMaps[iCh][iDepth] = np.array([])
+            #allRoiMaps[iCh][iDepth] = np.array([])
+            allFOV[iCh] = {}
             # load s2p data
             # check if the big npy file exists and if so load that (this is the non-trucated file, where as the truncated one is the one used for local curation using suite2p)
             if os.path.exists(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'F_big.npy')):
@@ -152,8 +152,10 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
                 Fall = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'F.npy'))
                 Fneu = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'Fneu.npy'))
                 spks = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'spks.npy'))
+
             s2p_stat = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'stat.npy'), allow_pickle=True)
             s2p_ops = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'ops.npy'), allow_pickle=True).item()
+
             # check for mismatch between frames trigs and frames in tiff
             if abs(framePulsesPerDepth-Fall.shape[1])/max([framePulsesPerDepth,Fall.shape[1]]) > 0.01:
                 pcDiff = round(abs(framePulsesPerDepth-Fall.shape[1])/max([framePulsesPerDepth,Fall.shape[1]]) * 100)
@@ -196,7 +198,7 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
             # this is the valid neuropil / F / Spks
             Fneu_valid = np.squeeze(Fneu[np.where(cellValid==1), :])
             F_valid = np.squeeze(Fall[np.where(cellValid==1), :])
-            Spks = np.squeeze(spks[np.where(cellValid==1), :])
+            Spks_valid = np.squeeze(spks[np.where(cellValid==1), :])
             s2pIndices = np.where(cellValid==1)
             xpix, ypix = [], []
             validCellIDs = np.where(cellValid==1)[0]
@@ -248,8 +250,9 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
             # F = F[:, :expFrameLength]
 
             # dF/F calculation
-            # this window should equate to 100 secs
-            smoothingWindowSize = 100 * resampleFreq
+            # this window should equate to 10 secs
+            smoothingWindowSize = (3 * frameRatePerPlane).round().astype(int)
+            baseline_min_window_size = (10 * frameRatePerPlane).round().astype(int)
             kernel = np.ones((1, smoothingWindowSize)) / smoothingWindowSize
             smoothed = signal.convolve2d(F_valid, kernel, mode='same')
             # remove edge effects
@@ -258,44 +261,70 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
             smoothed[:, -smoothingWindowSize:] = np.tile(smoothed[:, -smoothingWindowSize-1].reshape(smoothed.shape[0],1), [1, smoothingWindowSize])
             # replace nans with large values (so they don't get picked up as mins)
             smoothed[np.isnan(smoothed)] = np.max(smoothed)*2
-            baseline = ndimage.grey_erosion(smoothed, footprint=np.ones((1, smoothingWindowSize)))
-            plt.figure,plt.plot(baseline[20,:]),plt.plot(smoothed[20,:]), plt.show
+            # sliding min:
+            # compute the sliding window minimum with a window size of 3 over the second dimension
+            baseline = np.apply_along_axis(lambda smoothed: np.minimum.accumulate(np.concatenate([smoothed, np.repeat(smoothed[-1], baseline_min_window_size)]))[baseline_min_window_size:], axis=1, arr=smoothed)
+
+            # for iCell in range(10,20):
+            #     cell_to_plot = iCell
+            #     plt.figure(),plt.plot(F_valid[cell_to_plot,:]),plt.plot(min_x[cell_to_plot,:]), plt.show
+            #     plt.figure(),plt.imshow(dF, aspect='auto'),plt.colorbar(),plt.show()
 
             # # calculate dF/F
-            dF = (F-baseline) / baseline
+            dF = (F_valid-baseline) / baseline
             # get times of each frame
-            depthFrameTimes = frameTimes[iDepth+1:depthCount:len(frameTimes)]
+            depthFrameTimes = frameTimes[iDepth+1:len(frameTimes):depthCount]
+            # make sure there are not more times than frames
             depthFrameTimes = depthFrameTimes[:dF.shape[1]]
             # resample to get desired sampling rate
-            dF = interp1d(depthFrameTimes, dF.T, axis=0, fill_value="extrapolate")(outputTimes).T
-            F = interp1d(depthFrameTimes, F.T, axis=0, fill_value="extrapolate")(outputTimes).T
-            Spks = interp1d(depthFrameTimes, Spks.T, axis=0, fill_value="extrapolate")(outputTimes).T
-
-            if dF.shape[1] == 1:
-                dF = dF.T
+            dF_resampled = interpolate.interp1d(depthFrameTimes, dF.T, axis=0, fill_value="extrapolate")(outputTimes).T
+            F_resampled = interpolate.interp1d(depthFrameTimes, F_valid.T, axis=0, fill_value="extrapolate")(outputTimes).T
+            Spks_resampled = interpolate.interp1d(depthFrameTimes, Spks_valid.T, axis=0, fill_value="extrapolate")(outputTimes).T
+            # if there is only one cell ensure it is rotated to (cell,time) orientation
+            if len(dF_resampled.shape) == 1:
+                # add the new axis to make sure it is (cell,time)
+                dF_resampled = dF_resampled[np.newaxis,:]
+                F_resampled = F_resampled[np.newaxis,:]
+                Spks_resampled = Spks_resampled[np.newaxis,:]
 
             # pick out valid cells
-            alldF[iCh] = np.concatenate([alldF[iCh], dF])
-            allF[iCh] = np.concatenate([allF[iCh], F])
-            allSpikes[iCh] = np.concatenate([allSpikes[iCh], Spks])
+            allRoiPix[iCh] = {}
+            
+            if dF_resampled.shape[0] > 0:
+                # then we have some rois
+                if not(iCh in alldF):
+                    # if these are the first cells being added then initiate the array in the dict item with the right size
+                    alldF[iCh] = dF_resampled
+                    allF[iCh] = F_resampled
+                    allSpikes[iCh] = Spks_resampled
+                    allDepths[iCh] = np.tile(iDepth, (np.sum(cellValid[:]).astype(int), 1))
+                else:
+                    # concatenate to what is already there
+                    alldF[iCh] = np.concatenate((alldF[iCh],dF_resampled),axis=0)
+                    allF[iCh] = np.concatenate((allF[iCh],F_resampled),axis=0)
+                    allSpikes[iCh] = np.concatenate((allSpikes[iCh],Spks_resampled),axis=0)
+                    allDepths[iCh] = np.concatenate([allDepths[iCh], np.tile(iDepth, (np.sum(cellValid[:]).astype(int), 1))],axis=0)
 
-            allDepths[iCh] = np.concatenate([allDepths[iCh], np.tile(iDepth, (np.sum(cellValid[:, 0]), 1))])
-            allRoiPix[iCh][iDepth+1] = roiPix
-            allRoiMaps[iCh][iDepth+1] = roiMap
-
-            allFOV[iCh] = Fall['ops']['meanImg']
+            allRoiPix[iCh][iDepth] = roiPix
+            allRoiMaps[iCh][iDepth] = roiMap
+            allFOV[iCh][iDepth] = s2p_ops['meanImg']
 
     print('Saving 2-photon data...')
 
     # save as CSV
     for iCh in range(len(alldF)):
-        np.savetxt(os.path.join(recordingsRoot, f'dF_{iCh}.csv'), np.transpose([outputTimes, alldF[iCh]]), delimiter=',')
-        np.savetxt(os.path.join(recordingsRoot, f'F_{iCh}.csv'), np.transpose([outputTimes, allF[iCh]]), delimiter=',')
-        np.savetxt(os.path.join(recordingsRoot, f'Spikes_{iCh}.csv'), np.transpose([outputTimes, allSpikes[iCh]]), delimiter=',')
-        np.savetxt(os.path.join(recordingsRoot, f'roi_{iCh}.csv'), allRoiMaps[iCh], delimiter=',')
-        np.savetxt(os.path.join(recordingsRoot, f'fov_{iCh}.csv'), allFOV[iCh], delimiter=',')
-
-    # save for MATLAB
-    s2pData = {'alldF': alldF, 'allF': allF, 'allDepths': allDepths, 'allRoiPix': allRoiPix,
-            'allRoiMaps': allRoiMaps, 'meanFrame': Fall['ops']['meanImg'], 't': outputTimes}
-    sio.savemat(os.path.join(recordingsRoot, 's2pData.mat'), s2pData)
+        # make a dict where all of the experiment data is stored
+        ca_data = {}
+        ca_data['dF']           = alldF[iCh]
+        ca_data['F']            = allF[iCh]
+        ca_data['Spikes']       = allSpikes[iCh]
+        ca_data['Depths']       = allDepths[iCh]
+        ca_data['AllRoiPix']    = allRoiPix[iCh]
+        ca_data['AllRoiMaps']   = allRoiMaps[iCh]
+        ca_data['AllFOV']       = allFOV[iCh]
+        output_filename = 's2p_ch' + str(iCh)+'.pickle'
+        pickle_out = open(os.path.join(exp_dir_processed_recordings,output_filename),"wb")
+        pickle.dump(ca_data, pickle_out)
+        pickle_out.close()
+        # pickle_in = open(os.path.join(exp_dir_processed_recordings,output_filename),"rb")
+        # example_dict = pickle.load(pickle_in)
