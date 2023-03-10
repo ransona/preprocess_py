@@ -2,15 +2,49 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage.draw import polygon
-from circle_fit import circle_fit as circlefit
+from circle_fit import taubinSVD as circle_fit
 import time
 import os
+import pandas as pd
 
+# set path appropriately locally
+drive_prefix = os.path.join('g:\\', 'My Drive')
+# this will be used to resolve gdrive shortcuts:
+import win32com.client
+shell = win32com.client.Dispatch("WScript.Shell")
+
+# expID
 expID = '2022-01-21_04_ESPM039'
-dataRoot = 'D:/data'
+# user ID to use to place processed data
+userID = 'AR_RRP'
+# get animal ID from experiment ID
 animalID = expID[14:]
+# path to root of raw data
+remote_repository_root = os.path.join(drive_prefix,'Remote_Repository')
+# path to root of processed data
+processed_root = os.path.join(drive_prefix,'Remote_Repository_Processed',userID)
 
-expRoot = 'G:\.shortcut-targets-by-id\18E8Ww5qCgzn27qk_LrsR3R6wMweRdJ_Z\AR_RRP\ESPM039\2022-01-21_04_ESPM039'
+# resolve gdrive shortcuts if needed
+if os.path.exists(remote_repository_root+'.lnk'):
+    shortcut = shell.CreateShortCut(remote_repository_root+'.lnk')
+    remote_repository_root = shortcut.Targetpath
+if os.path.exists(processed_root+'.lnk'):
+    shortcut = shell.CreateShortCut(processed_root+'.lnk')
+    processed_root = shortcut.Targetpath
+
+# complete path to processed experiment data
+exp_dir_processed = os.path.join(processed_root, animalID, expID)
+# complete path to processed experiment data recordings
+exp_dir_processed_recordings = os.path.join(processed_root, animalID, expID,'recordings')
+# complete path to raw experiment data
+exp_dir = os.path.join(remote_repository_root, animalID, expID)
+
+if not os.path.exists(exp_dir_processed_recordings):
+    os.mkdir(exp_dir_processed_recordings)
+
+######################################
+### ^ above from preprocess ##########
+######################################
 
 displayOn = True
 displayInterval = 100
@@ -29,18 +63,17 @@ vid_filenames = [expID + '_eye1_left.avi',
 
 for iVid in range(1, len(dlc_filenames)):
 
-    videoPath = os.path.join(expRoot, vid_filenames[iVid])
+    videoPath = os.path.join(exp_dir_processed, vid_filenames[iVid])
     v = cv2.VideoCapture(videoPath)
 
     if not v.isOpened():
         raise Exception('Error: Eye video file not found')
 
     # read the csv deeplabcut output file
-    dlc_data = np.loadtxt(os.path.join(expRoot, dlc_filenames[iVid]), delimiter=',')
+    dlc_data = pd.read_csv(os.path.join(exp_dir_processed, dlc_filenames[iVid]), delimiter=',',skiprows=[0,1,2],header=None)
     # remove first column
-    dlc_data = dlc_data[:,1:]
-    eyeX = dlc_data[:,24::3]
-    eyeY = dlc_data[:,25::3]
+    eyeX = dlc_data.loc[:,[25,28,31,34]]
+    eyeY = dlc_data.loc[:,[26,29,32,35]]
     pupilX = dlc_data[:,0:24:3]
     pupilY = dlc_data[:,1:24:3]
     # get minimum of eye x and eye y confidence from dlc

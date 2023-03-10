@@ -57,8 +57,6 @@ exp_dir_processed_recordings = os.path.join(processed_root, animalID, expID,'rec
 # complete path to raw experiment data
 exp_dir = os.path.join(remote_repository_root, animalID, expID)
 
-animalID = expID[14:]
-
 if not os.path.exists(exp_dir_processed_recordings):
     os.mkdir(exp_dir_processed_recordings)
 
@@ -474,10 +472,10 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
 #################################
 ePhys1Idx = np.where(np.isin(tl_chNames, 'EPhys1'))
 ePhys2Idx = np.where(np.isin(tl_chNames, 'EPhys2'))
-ePhys1Data = tl_daqData[:, ePhys1Idx]
-ephys_combined = concatenate
-
-
+ePhys1Data = np.squeeze(tl_daqData[:, ePhys1Idx])[np.newaxis,:]
+ePhys2Data = np.squeeze(tl_daqData[:, ePhys2Idx])[np.newaxis,:]
+ephys_combined = np.concatenate((tl_time,ePhys1Data,ePhys2Data),axis=0)
+np.save(os.path.join(exp_dir_processed_recordings,'ephys.npy'),ephys_combined)
 
 # ePhys1Idx  = find(ismember(Timeline.chNames,'EPhys1'));
 # ePhys2Idx  = find(ismember(Timeline.chNames,'EPhys2'));
