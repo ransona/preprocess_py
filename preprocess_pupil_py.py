@@ -6,37 +6,39 @@ from circle_fit import taubinSVD as circle_fit
 import time
 import os
 import pandas as pd
+import pickle
 
 # set path appropriately locally
-drive_prefix = os.path.join('g:\\', 'My Drive')
+# drive_prefix = os.path.join('g:\\', 'My Drive')
 # this will be used to resolve gdrive shortcuts:
-import win32com.client
-shell = win32com.client.Dispatch("WScript.Shell")
+# import win32com.client
+# shell = win32com.client.Dispatch("WScript.Shell")
 
 # expID
-expID = '2022-01-21_04_ESPM039'
+expID = '2023-02-28_11_ESMT116'
 # user ID to use to place processed data
-userID = 'AR_RRP'
+userID = 'adamranson'
 # get animal ID from experiment ID
 animalID = expID[14:]
-# path to root of raw data
-remote_repository_root = os.path.join(drive_prefix,'Remote_Repository')
+# path to root of raw data, needs updating to point to gdrive:
+remote_repository_root = os.path.join('/home/',userID,'data/Repository')
+# remote_repository_root = os.path.join(drive_prefix,'Remote_Repository')
 # path to root of processed data
-processed_root = os.path.join(drive_prefix,'Remote_Repository_Processed',userID)
+processed_root = remote_repository_root
 
 # resolve gdrive shortcuts if needed
-if os.path.exists(remote_repository_root+'.lnk'):
-    shortcut = shell.CreateShortCut(remote_repository_root+'.lnk')
-    remote_repository_root = shortcut.Targetpath
-if os.path.exists(processed_root+'.lnk'):
-    shortcut = shell.CreateShortCut(processed_root+'.lnk')
-    processed_root = shortcut.Targetpath
+# if os.path.exists(remote_repository_root+'.lnk'):
+#     shortcut = shell.CreateShortCut(remote_repository_root+'.lnk')
+#     remote_repository_root = shortcut.Targetpath
+# if os.path.exists(processed_root+'.lnk'):
+#     shortcut = shell.CreateShortCut(processed_root+'.lnk')
+#     processed_root = shortcut.Targetpath
 
 # complete path to processed experiment data
 exp_dir_processed = os.path.join(processed_root, animalID, expID)
 # complete path to processed experiment data recordings
 exp_dir_processed_recordings = os.path.join(processed_root, animalID, expID,'recordings')
-# complete path to raw experiment data
+# complete path to raw experiment data, needs updating to point to gdrive:
 exp_dir = os.path.join(remote_repository_root, animalID, expID)
 
 if not os.path.exists(exp_dir_processed_recordings):
@@ -46,7 +48,7 @@ if not os.path.exists(exp_dir_processed_recordings):
 ### ^ above from preprocess ##########
 ######################################
 
-displayOn = True
+displayOn = False
 displayInterval = 100
 
 if displayOn:
@@ -61,7 +63,7 @@ vid_filenames = [expID + '_eye1_left.avi',
                  expID + '_eye1_right.avi']
 
 
-for iVid in range(1, len(dlc_filenames)):
+for iVid in range(0, len(dlc_filenames)-1):
 
     videoPath = os.path.join(exp_dir_processed, vid_filenames[iVid])
     v = cv2.VideoCapture(videoPath)
@@ -71,34 +73,49 @@ for iVid in range(1, len(dlc_filenames)):
 
     # read the csv deeplabcut output file
     dlc_data = pd.read_csv(os.path.join(exp_dir_processed, dlc_filenames[iVid]), delimiter=',',skiprows=[0,1,2],header=None)
+
     # remove first column
-    eyeX = dlc_data.loc[:,[25,28,31,34]]
-    eyeY = dlc_data.loc[:,[26,29,32,35]]
-    pupilX = dlc_data[:,0:24:3]
-    pupilY = dlc_data[:,1:24:3]
+    z = dlc_data.iloc[1,1]
+    eyeX = dlc_data.iloc[:,[25,28,31,34]].values
+    eyeY = dlc_data.loc[:,[26,29,32,35]].values
+    pupilX = dlc_data.loc[:,1:22:3].values
+    pupilY = dlc_data.loc[:,2:23:3].values
     # get minimum of eye x and eye y confidence from dlc
     # eye x and eye y are always needed as a minimum to process a frame so
     # we ensure below that these coordinates all have confidence > 0.8
-    eyeMinConfid = np.min(dlc_data[:,26::3], axis=1)
-    
+    eyeMinConfid = np.min(dlc_data.loc[:,26::3], axis=1)
     ret, firstFrame = v.read()
     frameSize = np.squeeze(firstFrame[:,:,0]).shape
     
     # choose approximate eye area - points outside this will be considered
     # invalid
-    plt.imshow(firstFrame)
-    roiLeft = np.median(eyeX[:,2])
-    roiTop = np.median(eyeY[:,1])
-    roiWidth = 50 # np.median(eyeX[:,0]) - roiLeft
-    roiHeight = 50 # np.median(eyeY[:,3]) - roiTop
-    padding = roiWidth * 0.75
-    rect = plt.Rectangle((roiLeft-padding,roiTop-padding), roiWidth+padding*2, roiHeight+padding*2, edgecolor='r', fill=False)
-    ax = plt.gca()
-    ax.add_patch(rect)
-    plt.show()
-    plt.close()
-    validRegionMask = np.zeros(frameSize, dtype=bool)
-    validRegionMask[roiTop-padding:roiTop+roiHeight+padding, roiLeft-padding:roiLeft+roiWidth+padding] = True
+    roiLeft = np.median(eyeX[:,2],0).astype(int)
+    roiTop = np.median(eyeY[:,1],0).astype(int)
+    roiWidth = (np.median(eyeX[:,0],0) - roiLeft).astype(int)
+    roiHeight = (np.median(eyeY[:,3]) - roiTop).astype(int)
+    padding = int((roiWidth * 0.75))
+
+    # for debugging the assumed eye position:
+    #plt.figure()
+    #plt.imshow(firstFrame)
+    #rect = plt.Rectangle((roiLeft-padding,roiTop-padding), roiWidth+padding*2, roiHeight+padding*2, edgecolor='r', fill=False)
+    #ax = plt.gca()
+    #ax.add_patch(rect)
+    #plt.show()
+    #plt.close()
+    #############
+    validRegionMask = np.zeros(frameSize)
+    topLimit = roiTop-padding
+    bottomLimit = roiTop+roiHeight+padding
+    leftLimit = roiLeft-padding
+    rightLimit = roiLeft+roiWidth+padding
+    if topLimit < 0: topLimit = 0
+    if bottomLimit > frameSize[0]: bottomLimit = frameSize[0]
+    if leftLimit < 0: leftLimit = 0
+    if rightLimit > frameSize[1]: rightLimit = frameSize[1]
+    validRegionMask[topLimit:bottomLimit,leftLimit:rightLimit] = 1
+    #plt.figure()
+    #plt.imshow(validRegionMask)
     # calc some average values for eye to be used for QC later
     eyeWidth = (np.median(eyeX[:,0])-np.median(eyeX[:,2]))
     # clip coordinates to frame size
@@ -106,12 +123,18 @@ for iVid in range(1, len(dlc_filenames)):
     eyeY[eyeY>frameSize[0]] = frameSize[0]
     pupilX[pupilX>frameSize[1]] = frameSize[1]
     pupilY[pupilY>frameSize[0]] = frameSize[0]
-    eyeX[eyeX<1] = 1
-    eyeY[eyeY<1] = 1
-    pupilX[pupilX<1] = 1
-    pupilY[pupilY<1] = 1
+    eyeX[eyeX<0] = 0
+    eyeY[eyeY<0] =0
+    pupilX[pupilX<0] = 0
+    pupilY[pupilY<0] = 0
     
-    eyeDat = []
+    # create dict to output eye data to
+    eyeDat = {}
+    eyeDat['x'] = []
+    eyeDat['y'] = []
+    eyeDat['radius'] = []
+    eyeDat['qc'] = []
+
     lastFrame = time.time()
     for iFrame in range(dlc_data.shape[0]):
         # do QC to make sure the eye corners have been well detected
@@ -131,7 +154,10 @@ for iVid in range(1, len(dlc_filenames)):
             eyeX[iFrame,0]-eyeX[iFrame,3]
         ]))
 
-        if np.min(pointsValid) == 1 and (min_corner_middle_distance / eyeWidth) > 0.33:
+        # confirm all 4 eye corners are within expected region AND that the smallest of 
+        # the mid-eyelid to lat-eye corner distances is more than 30% of eye width (it
+        # should be about 50%)
+        if np.min(pointsValid) == 1 and (min_corner_middle_distance / eyeWidth) > 0.30:
 
             # fit two parabolas - one for each eye lid
             # points:
@@ -144,91 +170,117 @@ for iVid in range(1, len(dlc_filenames)):
             # for upper lid
             yVals = topLid[0] * xVals**2 + topLid[1] * xVals + topLid[2]
             # for lower lid
-            yVals = np.concatenate([yVals, botLid[0] * np.fliplr(xVals)**2 + botLid[1] * np.fliplr(xVals) + botLid[2]])
-            xVals = np.concatenate([xVals, np.fliplr(xVals)])
+            yVals = np.concatenate([yVals, botLid[0] * np.flipud(xVals)**2 + botLid[1] * np.flipud(xVals) + botLid[2]])
+            xVals = np.concatenate([xVals, np.flipud(xVals)])
             # check if y values
             # make a poly mask using the points
             rr, cc = polygon(yVals, xVals)
             eyeMask = np.zeros(frameSize)
             eyeMask[rr, cc] = 1
-
+            #plt.figure()
+            #plt.imshow(eyeMask)
             # check if each pupil point is in the eye mask and exclude it if not
-            pupilIdx = np.ravel_multi_index((np.round(pupilY[iFrame]), np.round(pupilX[iFrame])), frameSize)
-            inEye = eyeMask.flatten()[pupilIdx]
-
+            # to do this convert x y coordinates 
+            pupilIdx = np.ravel_multi_index([[pupilY[iFrame].astype(int)], [pupilX[iFrame].astype(int)]], frameSize)
+            inEye = eyeMask.flatten()[pupilIdx][0].astype(bool)
             # fit a circle to those pupil points within the eye
+            xpoints = pupilX[iFrame, inEye]
+            ypoints = pupilY[iFrame, inEye]
+            allpoints = np.concatenate((xpoints[np.newaxis,:],ypoints[np.newaxis,:]),axis=0).T
             if np.sum(inEye) > 2:
-                xCenter, yCenter, radius, _ = circlefit(pupilX[iFrame, inEye], pupilY[iFrame, inEye])
+                xCenter, yCenter, radius, _ = circle_fit(allpoints)
             else:
                 # not enough points to fit circle
                 xCenter = np.nan
                 yCenter = np.nan
                 radius = np.nan
 
-            eyeDat.x[iFrame] = xCenter
-            eyeDat.y[iFrame] = yCenter
+            eyeDat['x'].append(xCenter.astype(int))
+            eyeDat['y'].append(yCenter.astype(int))
+            eyeDat['radius'].append(radius.astype(int))
+
+            # default to quality control passed
+            eyeDat['qc'].append(0)
 
             if np.sum(inEye) < 2:
-                eyeDat.qc[iFrame] = 2  # indicates QC failed due to pupil fit
-            else:
-                eyeDat.qc[iFrame] = 0  # indicates QC passed
+                eyeDat['qc'][iFrame] = 2  # indicates QC failed due to pupil fit
 
-            eyeDat.radius[iFrame] = radius
-            eyeDat.topLid[iFrame] = topLid
-            eyeDat.botLid[iFrame] = botLid
-            eyeDat.inEye[iFrame] = inEye
+            if iFrame==0:
+                # initialise data structure
+                eyeDat['topLid']=(topLid[np.newaxis,:])
+                eyeDat['botLid']=(botLid[np.newaxis,:])
+                eyeDat['inEye']=(inEye[np.newaxis,:])
+            else:
+                eyeDat['topLid']=np.concatenate((eyeDat['topLid'],topLid[np.newaxis,:]),axis=0)
+                eyeDat['botLid']=np.concatenate((eyeDat['botLid'],botLid[np.newaxis,:]),axis=0)
+                eyeDat['inEye']=np.concatenate((eyeDat['inEye'],inEye[np.newaxis,:]),axis=0)
 
             if iFrame % displayInterval == 0:
                 print('#####################')
                 print(f'{iFrame}/{dlc_data.shape[0]} - {iFrame/dlc_data.shape[0]*100:.2f}% complete')
-                print(f'Frame rate = {1/lastFrameTime:.2f}')
+                print(f'Frame rate = {1/lastFrame:.2f}')
                 print('#####################')
 
         else:
             # frame has failed QC
-            eyeDat.x[iFrame] = np.nan
-            eyeDat.y[iFrame] = np.nan
-            eyeDat.radius[iFrame] = np.nan
-            eyeDat.topLid[iFrame] = np.nan
-            eyeDat.botLid[iFrame]
-
-    lastFrame = time.time()
-
-    if displayOn:
-        if iFrame % displayInterval == 0:
-            if eyeDat.qc[iFrame] == 0:
-                # quality control passed
-                plt.figure()
-                currentFrame = readVideoIndex(v, iFrame)
-                currentFrame = np.squeeze(currentFrame[:, :, 1])
-                # all plotting
-                plt.clf()
-                plt.imshow(currentFrame, cmap='gray')
-                # plot all coordinates
-                # plot eye
-                plt.plot(xVals, yVals, 'y')
-                # plot valid pupil points
-                plt.scatter(pupilX[iFrame, inEye], pupilY[iFrame, inEye], c='g')
-                # invalid
-                plt.scatter(pupilX[iFrame, ~inEye], pupilY[iFrame, ~inEye], c='r')
-                # draw pupil circle
-                plt.gca().add_artist(plt.Circle((xCenter, yCenter), radius, fill=False))
-                plt.show()
+            eyeDat['qc'].append(0)
+            eyeDat['x'].append(np.nan)
+            eyeDat['y'].append(np.nan)
+            if iFrame==0:
+                # initialise data structure
+                eyeDat['topLid']=np.nan
+                eyeDat['botLid']=np.nan
+                eyeDat['inEye']=np.nan
             else:
-                # quality control NOT passed
-                plt.figure()
-                currentFrame = readVideoIndex(v, iFrame)
-                currentFrame = np.squeeze(currentFrame[:, :, 1])
-                # all plotting
-                plt.clf()
-                plt.imshow(currentFrame, cmap='gray')
-                # plot all coordinates
-                plt.scatter(pupilX[iFrame, :], pupilY[iFrame, :], c='g')
-                # plot valid pupil points
-                plt.scatter(pupilX[iFrame, :], pupilY[iFrame, :], c='g')
-                # eye points
-                plt.scatter(eyeX[iFrame, :], eyeY[iFrame, :])
-                plt.show()
+                # add a row of nans of the right shape (width)
+                eyeDat['topLid']=np.concatenate((eyeDat['topLid'],np.full((1,eyeDat['topLid'].shape[1]),np.nan)),axis=0)
+                eyeDat['botLid']=np.concatenate((eyeDat['botLid'],np.full((1,eyeDat['botLid'].shape[1]),np.nan)),axis=0)
+                eyeDat['inEye']=np.concatenate((eyeDat['inEye'],np.full((1,eyeDat['inEye'].shape[1]),np.nan)),axis=0)
+
+        if displayOn:
+            if iFrame == 0:
+                fig = plt.figure()
+
+            if iFrame % displayInterval == 0:
+
+                if eyeDat['qc'][iFrame] == 0:
+                    # quality control passed
+
+                    # set to read next frame
+                    v.set(cv2.CAP_PROP_POS_FRAMES, iFrame)
+                    # read the frame at the current position
+                    ret, currentFrame = v.read()
+                    currentFrame = np.squeeze(currentFrame[:, :, 1])
+                    # all plotting
+                    plt.clf()
+                    plt.imshow(currentFrame, cmap='gray')
+                    # plot all coordinates
+                    # plot eye
+                    plt.plot(xVals, yVals, 'y')
+                    # plot valid pupil points
+                    plt.scatter(pupilX[iFrame, inEye], pupilY[iFrame, inEye], c='g')
+                    # invalid
+                    plt.scatter(pupilX[iFrame, ~inEye], pupilY[iFrame, ~inEye], c='r')
+                    # draw pupil circle
+                    plt.gca().add_artist(plt.Circle((xCenter, yCenter), radius, fill=False))
+                    plt.show()
+                    fig.canvas.draw()
+                    fig.canvas.flush_events()
+                else:
+                    # quality control NOT passed
+                    plt.figure()
+                    currentFrame = readVideoIndex(v, iFrame)
+                    currentFrame = np.squeeze(currentFrame[:, :, 1])
+                    # all plotting
+                    plt.clf()
+                    plt.imshow(currentFrame, cmap='gray')
+                    # plot all coordinates
+                    plt.scatter(pupilX[iFrame, :], pupilY[iFrame, :], c='g')
+                    # plot valid pupil points
+                    plt.scatter(pupilX[iFrame, :], pupilY[iFrame, :], c='g')
+                    # eye points
+                    plt.scatter(eyeX[iFrame, :], eyeY[iFrame, :])
+                    plt.show()
 
     # do some further quality control
     # remove points where pupil looks dodgy
@@ -250,24 +302,10 @@ for iVid in range(1, len(dlc_filenames)):
     eyeDat['velocity'] = np.convolve(eucla_diff, np.ones(10), 'same')
     eyeDat['velocity'] = np.append(eyeDat['velocity'], eyeDat['velocity'][-1])
     if iVid == 1:
-        scipy.io.savemat(os.path.join(expRoot, 'dlcEyeLeft.mat'), {'eyeDat': eyeDat})
+        pickle_out = open(os.path.join(exp_dir,'dlcEyeLeft.pickle'),"wb")
+        pickle.dump(eyeDat, pickle_out)
+        pickle_out.close()
     else:
-        scipy.io.savemat(os.path.join(expRoot, 'dlcEyeRight.mat'), {'eyeDat': eyeDat})
-
-def circlefit(x, y):
-    numPoints = len(x)
-    xx = x * x
-    yy = y * y
-    xy = x * y
-    A = np.array([[np.sum(x),  np.sum(y),  numPoints],
-                  [np.sum(xy), np.sum(yy), np.sum(y)],
-                  [np.sum(xx), np.sum(xy), np.sum(x)]])
-    B = np.array([-np.sum(xx + yy),
-                  -np.sum(xx * y + yy * y),
-                  -np.sum(xx * x + xy * y)])
-    a = np.linalg.solve(A, B)
-    xCenter = -0.5 * a[0]
-    yCenter = -0.5 * a[1]
-    radius = np.sqrt((a[0] ** 2 + a[1] ** 2) / 4 - a[2])
-    return xCenter, yCenter, radius, a
-
+        pickle_out = open(os.path.join(exp_dir,'dlcEyeRight.pickle'),"wb")
+        pickle.dump(eyeDat, pickle_out)
+        pickle_out.close()        
