@@ -24,6 +24,7 @@ def run_preprocess_s2p(userID, expID):
     tl_time    = Timeline['time'][0][0]
 
     doMerge = False
+    subtract_overall_frame = True
     resampleFreq = 30
     neuropilWeight = 0.7
     # initiate these as dict:
@@ -141,10 +142,18 @@ def run_preprocess_s2p(userID, expID):
             # remove cells with iscell = 0 but keep record of original
             # suite2p output cell numbers
             # this is the valid neuropil / F / Spks
-            Fneu_valid = np.squeeze(Fneu[np.where(cellValid==1), :])
-            F_valid = np.squeeze(Fall[np.where(cellValid==1), :])
-            Spks_valid = np.squeeze(spks[np.where(cellValid==1), :])
-            s2pIndices = np.where(cellValid==1)
+            if sum(cellValid)>1:
+                Fneu_valid = np.squeeze(Fneu[np.where(cellValid==1), :])
+                F_valid = np.squeeze(Fall[np.where(cellValid==1), :])
+                Spks_valid = np.squeeze(spks[np.where(cellValid==1), :])
+            else:
+                Fneu_valid = np.squeeze(Fneu[np.where(cellValid==1), :])
+                F_valid = np.squeeze(Fall[np.where(cellValid==1), :])
+                Spks_valid = np.squeeze(spks[np.where(cellValid==1), :])
+                Fneu_valid = Fneu_valid[np.newaxis,:]
+                F_valid = F_valid[np.newaxis,:]
+                Spks_valid = Spks_valid[np.newaxis,:]
+
             xpix, ypix = [], []
             validCellIDs = np.where(cellValid==1)[0]
             # this is to later store the x and ypix of each valid cell
@@ -155,8 +164,9 @@ def run_preprocess_s2p(userID, expID):
 
             # remove potential stimulus artifact - i.e. mean of frame which
             # is extracted above
-            Fneu_valid = Fneu_valid - np.tile(meanFrameTimecourse, (Fneu_valid.shape[0], 1))
-            F_valid = F_valid - np.tile(meanFrameTimecourse, (F_valid.shape[0], 1))
+            if subtract_overall_frame:
+                Fneu_valid = Fneu_valid - np.tile(meanFrameTimecourse, (Fneu_valid.shape[0], 1))
+                F_valid = F_valid - np.tile(meanFrameTimecourse, (F_valid.shape[0], 1))
 
             # neuropil subtraction
             F_valid = F_valid - (Fneu_valid * neuropilWeight)
@@ -184,6 +194,7 @@ def run_preprocess_s2p(userID, expID):
             roiPix = []
             # make a blank roi map
             roiMap = np.zeros(np.shape(s2p_ops['meanImg']))
+
             for iRoi in range(F_valid.shape[0]):
                 # collect pix in ROI
                 roiPix.append(np.ravel_multi_index((ypix[iRoi]+1,xpix[iRoi]+1), np.shape(s2p_ops['meanImg'])))

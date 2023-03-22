@@ -58,6 +58,7 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
         trial_count = all_trials.shape[0]
         max_snippet_len = int((pre_time+post_time+max(all_trials['duration']))*ca_framerate)
         ca_cut = np.full([roi_count, trial_count,max_snippet_len],np.nan,dtype=np.float16)
+        ca_cut_t = np.arange(pre_time+post_time+max(all_trials['duration']))-pre_time
         for iTrial in range(all_trials.shape[0]):
             trial_onset_time = all_trials.loc[iTrial,'time']-pre_time
             trial_end_time = all_trials.loc[iTrial,'time'] + all_trials.loc[iTrial,'duration']+post_time
@@ -72,6 +73,8 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
                 snippet_to_insert = ca_data['dF'][iCell,first_sample:last_sample]
                 ca_cut[iCell,iTrial,0:len(snippet_to_insert)]=snippet_to_insert
 
+        # debug:
+        plt.imshow(np.squeeze(ca_cut),aspect='auto',cmap='gray', extent=[ca_cut_t[0],ca_cut_t[-1],-1,1])
         # save cut snippets for ch
         np.save(os.path.join(exp_dir_processed_cut,(iS2P_file[0:7]+'_cut.npy')), ca_cut)
 
@@ -165,9 +168,10 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
 def main():
     # expID
     expID = '2023-02-28_11_ESMT116'
+    expID = '2023-03-01_01_ESMT107'
     # user ID to use to place processed data
     userID = 'adamranson'
-    run_preprocess_cut(userID, expID,4,2)
+    run_preprocess_cut(userID, expID,2,2)
 
 if __name__ == "__main__":
     main()

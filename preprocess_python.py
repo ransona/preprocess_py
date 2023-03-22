@@ -15,6 +15,7 @@ import preprocess_ephys
 
 # expID
 expID = '2023-02-28_11_ESMT116'
+expID = '2023-03-01_01_ESMT107'
 # user ID to use to place processed data
 userID = 'adamranson'
 skip_ca = False
@@ -44,6 +45,10 @@ if os.path.exists(os.path.join(exp_dir_processed, 'suite2p')) and not skip_ca:
 # Process ephys data
 ###########################################################
 preprocess_ephys.run_preprocess_ephys(userID, expID)
+
+###########################################################
+# Process DLC data
+###########################################################
 
 ####################################################
 ### cut up ephys, eye, and ca traces into trials ###

@@ -8,7 +8,7 @@ import timeit
 import organise_paths
 
 # expID
-expID = '2022-02-08_04_ESPM040'
+expID = '2023-03-01_01_ESMT107'
 # user ID to use to place processed data
 userID = 'adamranson'
 skip_ca = False
