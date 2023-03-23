@@ -133,12 +133,12 @@ def run_preprocess_dlc(userID, expID):
     config_path = '/data/common/dlc_models/eye/config.yaml'
     videos = os.path.join(exp_dir_processed,(expID+'_eye1_left.avi'))
     destfolder = exp_dir_processed
-    deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, trainingsetindex=0, gputouse=None, save_as_csv=True, destfolder=destfolder, dynamic=(True, .5, 10))
+    deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, trainingsetindex=0, gputouse=None, save_as_csv=True, destfolder=destfolder, dynamic=(True, .5, 50))
     deeplabcut.create_labeled_video(config_path, videos, save_frames = True)
 
     videos= os.path.join(exp_dir_processed,(expID+'_eye1_right.avi'))
     destfolder = exp_dir_processed
-    deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, trainingsetindex=0, gputouse=None, save_as_csv=True, destfolder=destfolder, dynamic=(True, .5, 10))
+    deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, trainingsetindex=0, gputouse=None, save_as_csv=True, destfolder=destfolder, dynamic=(True, .5, 50))
     deeplabcut.create_labeled_video(config_path, videos, save_frames = True)
 
 # for debugging:

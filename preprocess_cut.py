@@ -57,26 +57,41 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
         roi_count = ca_data['dF'].shape[0]
         trial_count = all_trials.shape[0]
         max_snippet_len = int((pre_time+post_time+max(all_trials['duration']))*ca_framerate)
-        ca_cut = np.full([roi_count, trial_count,max_snippet_len],np.nan,dtype=np.float16)
-        ca_cut_t = np.arange(pre_time+post_time+max(all_trials['duration']))-pre_time
+        s2p_dF_cut = {}
+        s2p_F_cut = {}
+        s2p_Spikes_cut = {}
+        s2p_dF_cut['dF'] = np.full([roi_count, trial_count,max_snippet_len],np.nan,dtype=np.float16)
+        s2p_F_cut['F'] = np.full([roi_count, trial_count,max_snippet_len],np.nan,dtype=np.float16)
+        s2p_Spikes_cut['Spikes'] = np.full([roi_count, trial_count,max_snippet_len],np.nan,dtype=np.float16)
+
         for iTrial in range(all_trials.shape[0]):
-            trial_onset_time = all_trials.loc[iTrial,'time']-pre_time
+            trial_onset_time = all_trials.loc[iTrial,'time']
             trial_end_time = all_trials.loc[iTrial,'time'] + all_trials.loc[iTrial,'duration']+post_time
             # collect samples from ephys
-            first_sample = np.argmax(ca_data['t'] >= trial_onset_time)
-            last_sample = np.argmax(ca_data['t'] >= trial_end_time)
-            if last_sample - first_sample > ca_cut.shape[2]:
+            first_sample = np.argmax(ca_data['t'] >= (trial_onset_time-pre_time))
+            last_sample = np.argmax(ca_data['t'] >= (trial_end_time+post_time))
+            if last_sample - first_sample > s2p_dF_cut['dF'].shape[2]:
                 # make sure the snippet being cut will fit into the preallocated array and if not make it shorter (it should be about right already)
-                last_sample = last_sample - ((last_sample - first_sample)-ca_cut.shape[2])
+                last_sample = last_sample - ((last_sample - first_sample)-s2p_dF_cut['dF'].shape[2])
             for iCell in range(ca_data['dF'].shape[0]):
                 # cut out snippets
                 snippet_to_insert = ca_data['dF'][iCell,first_sample:last_sample]
-                ca_cut[iCell,iTrial,0:len(snippet_to_insert)]=snippet_to_insert
+                s2p_dF_cut['dF'][iCell,iTrial,0:len(snippet_to_insert)]=snippet_to_insert
+                snippet_to_insert = ca_data['F'][iCell,first_sample:last_sample]
+                s2p_F_cut['F'][iCell,iTrial,0:len(snippet_to_insert)]=snippet_to_insert
+                snippet_to_insert = ca_data['Spikes'][iCell,first_sample:last_sample]
+                s2p_Spikes_cut['Spikes'][iCell,iTrial,0:len(snippet_to_insert)]=snippet_to_insert
 
         # debug:
-        plt.imshow(np.squeeze(ca_cut),aspect='auto',cmap='gray', extent=[ca_cut_t[0],ca_cut_t[-1],-1,1])
-        # save cut snippets for ch
-        np.save(os.path.join(exp_dir_processed_cut,(iS2P_file[0:7]+'_cut.npy')), ca_cut)
+        #plt.imshow(np.squeeze(ca_cut[0,:,:]),aspect='auto',cmap='gray', extent=[ca_cut_t[0],ca_cut_t[-1],-1,1],interpolation="nearest") 
+        # save cut snippets for ch in pickle
+        s2p_dF_cut['t'] = np.linspace(0,s2p_dF_cut['dF'].shape[2]/ca_framerate,s2p_dF_cut['dF'].shape[2]) - pre_time
+        s2p_F_cut['t'] = s2p_dF_cut['t']
+        s2p_Spikes_cut['t'] = s2p_dF_cut['t']
+
+        with open(os.path.join(exp_dir_processed_cut,iS2P_file[0:7]+'_dF_cut.pickle'), 'wb') as f: pickle.dump(s2p_dF_cut, f)
+        with open(os.path.join(exp_dir_processed_cut,iS2P_file[0:7]+'_F_cut.pickle'), 'wb') as f: pickle.dump(s2p_F_cut, f)
+        with open(os.path.join(exp_dir_processed_cut,iS2P_file[0:7]+'_Spikes_cut.pickle'), 'wb') as f: pickle.dump(s2p_Spikes_cut, f)
 
     ### Cut ephys data ###
     ephys_combined = np.load(os.path.join(exp_dir_processed_recordings,'ephys.npy'))
@@ -86,26 +101,23 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
         trial_onset_time = all_trials.loc[iTrial,'time']
         trial_end_time = trial_onset_time + all_trials.loc[iTrial,'duration']
         # collect samples from ephys
-        first_sample = np.argmax(ephys_combined[0,:] >= trial_onset_time)
-        last_sample = np.argmax(ephys_combined[0,:] >= trial_end_time)
+        first_sample = np.argmax(ephys_combined[0,:] >= (trial_onset_time-pre_time))
+        last_sample = np.argmax(ephys_combined[0,:] >= (trial_end_time+pre_time))
         if iTrial == 0:
-            ephys_cut[0] = ephys_combined[np.newaxis,1,first_sample:last_sample]
-            ephys_cut[1] = ephys_combined[np.newaxis,2,first_sample:last_sample]
+            ephys_cut['0'] = ephys_combined[np.newaxis,1,first_sample:last_sample]
+            ephys_cut['1'] = ephys_combined[np.newaxis,2,first_sample:last_sample]
         else:
-            ephys_cut[0] = sparse_cat_np(ephys_cut[0],ephys_combined[1,first_sample:last_sample])
-            ephys_cut[1] = sparse_cat_np(ephys_cut[1],ephys_combined[2,first_sample:last_sample])
+            ephys_cut['0'] = sparse_cat_np(ephys_cut['0'],ephys_combined[1,first_sample:last_sample])
+            ephys_cut['1'] = sparse_cat_np(ephys_cut['1'],ephys_combined[2,first_sample:last_sample])
     
+    ephys_cut['t'] = np.linspace(0,ephys_cut['0'].shape[1]/1000,ephys_cut['0'].shape[1])-pre_time
     # save in pickle
     with open(os.path.join(exp_dir_processed_cut,'ephys_cut.pickle'), 'wb') as f: pickle.dump(ephys_cut, f)
 
     ### Cut eye data ###
     # load dlc data
-    pickle_in = open(os.path.join(exp_dir_processed_recordings,'dlcEyeLeft_resampled.pickle'),"rb")
-    eyeDat_left = pickle.load(pickle_in)
-    pickle_in.close()
-    pickle_in = open(os.path.join(exp_dir_processed_recordings,'dlcEyeRight_resampled.pickle'),"rb")
-    eyeDat_right = pickle.load(pickle_in)
-    pickle_in.close()
+    eyeDat_left = pickle.load(open(os.path.join(exp_dir_processed_recordings,'dlcEyeLeft_resampled.pickle'), "rb"))
+    eyeDat_right = pickle.load(open(os.path.join(exp_dir_processed_recordings,'dlcEyeRight_resampled.pickle'), "rb"))
     # loop through all trials collecting the dlc traces
     eye_cut_left = {}
     eye_cut_right = {}
@@ -113,8 +125,8 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
         trial_onset_time = all_trials.loc[iTrial,'time']
         trial_end_time = trial_onset_time + all_trials.loc[iTrial,'duration']
         # collect samples from dlc
-        first_sample = np.argmax(eyeDat_left['t'] >= trial_onset_time)
-        last_sample = np.argmax(eyeDat_left['t'] >= trial_end_time)
+        first_sample = np.argmax(eyeDat_left['t'] >= (trial_onset_time-pre_time))
+        last_sample = np.argmax(eyeDat_left['t'] >= (trial_end_time+post_time))
         if iTrial == 0:
             eye_cut_left['x'] = eyeDat_left['x'][np.newaxis,first_sample:last_sample]
             eye_cut_left['y'] = eyeDat_left['y'][np.newaxis,first_sample:last_sample]
@@ -142,6 +154,10 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
             eye_cut_right['qc'] = sparse_cat_np(eye_cut_right['qc'],eyeDat_right['qc'][np.newaxis,first_sample:last_sample])
             eye_cut_right['frame'] = sparse_cat_np(eye_cut_right['qc'],eyeDat_right['frame'][np.newaxis,first_sample:last_sample])
 
+    # make time vector
+    eye_sample_rate = 1/np.round(eyeDat_left['t'][1]-eyeDat_left['t'][0],4)
+    eye_cut_left['t'] = np.linspace(0,eye_cut_left['x'].shape[1]/eye_sample_rate,eye_cut_left['x'].shape[1]) - pre_time
+    eye_cut_right['t'] = np.linspace(0,eye_cut_right['x'].shape[1]/eye_sample_rate,eye_cut_right['x'].shape[1]) - pre_time
     # save in pickle
     with open(os.path.join(exp_dir_processed_cut,'eye_left_cut.pickle'), 'wb') as f: pickle.dump(eye_cut_left, f)        
     with open(os.path.join(exp_dir_processed_cut,'eye_right_cut.pickle'), 'wb') as f: pickle.dump(eye_cut_right, f)  
@@ -154,8 +170,8 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
         trial_onset_time = all_trials.loc[iTrial,'time']
         trial_end_time = trial_onset_time + all_trials.loc[iTrial,'duration']
         # collect samples from ephys
-        first_sample = np.argmax(ephys_combined[0,:] >= trial_onset_time)
-        last_sample = np.argmax(ephys_combined[0,:] >= trial_end_time)
+        first_sample = np.argmax(ephys_combined[0,:] >= trial_onset_time - pre_time)
+        last_sample = np.argmax(ephys_combined[0,:] >= trial_end_time + post_time)
         if iTrial == 0:
             ephys_cut[0] = ephys_combined[np.newaxis,1,first_sample:last_sample]
             ephys_cut[1] = ephys_combined[np.newaxis,2,first_sample:last_sample]

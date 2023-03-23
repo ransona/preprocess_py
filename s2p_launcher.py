@@ -25,7 +25,7 @@ def main():
         'data_path': [tif_path],
         'save_path0': exp_dir_processed,
         'save_disk': exp_dir_processed, # where bin is moved after processing
-        'fast_disk': os.path.join('/data/fast', animalID, expID),
+        'fast_disk': os.path.join('/data/fast',userID, animalID, expID),
         }
     
     output_ops = suite2p.run_s2p(ops=ops, db=db)  

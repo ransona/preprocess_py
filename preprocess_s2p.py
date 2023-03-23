@@ -182,6 +182,7 @@ def run_preprocess_s2p(userID, expID):
                 print('Offsetting all F by', (np.min(FMins)*-1)+20)
                 F_valid = F_valid + (np.min(FMins)*-1)+20
                 
+                
             FMins = np.min(F_valid, axis=1)
             # plt.subplot(1, 2, 2)
             # plt.hist(FMins)

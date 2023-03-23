@@ -1,8 +1,11 @@
+# take dlc pipil output and fits circle to pupil etc
+
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage.draw import polygon
 from circle_fit import taubinSVD as circle_fit
+from scipy.ndimage import median_filter
 import time
 import os
 import pandas as pd
@@ -53,6 +56,11 @@ def preprocess_pupil_run(userID, expID):
         pupilX = dlc_data.loc[:,1:22:3].values
         pupilY = dlc_data.loc[:,2:23:3].values
         # get minimum of eye x and eye y confidence from dlc
+        # apply a median filter accross time to remove random blips 
+        eyeX = median_filter(eyeX,[3,1])
+        eyeY = median_filter(eyeY,[3,1])
+        pupilX = median_filter(pupilX,[3,1])
+        pupilY = median_filter(pupilY,[3,1])
         # eye x and eye y are always needed as a minimum to process a frame so
         # we ensure below that these coordinates all have confidence > 0.8
         eyeMinConfid = np.min(dlc_data.loc[:,26::3], axis=1)
@@ -159,17 +167,20 @@ def preprocess_pupil_run(userID, expID):
                 xpoints = pupilX[iFrame, inEye]
                 ypoints = pupilY[iFrame, inEye]
                 allpoints = np.concatenate((xpoints[np.newaxis,:],ypoints[np.newaxis,:]),axis=0).T
+                
                 if np.sum(inEye) > 2:
                     xCenter, yCenter, radius, _ = circle_fit(allpoints)
+                    eyeDat['x'].append(xCenter.astype(int))
+                    eyeDat['y'].append(yCenter.astype(int))
+                    eyeDat['radius'].append(radius.astype(int))
                 else:
                     # not enough points to fit circle
                     xCenter = np.nan
                     yCenter = np.nan
                     radius = np.nan
-
-                eyeDat['x'].append(xCenter.astype(int))
-                eyeDat['y'].append(yCenter.astype(int))
-                eyeDat['radius'].append(radius.astype(int))
+                    eyeDat['x'].append(xCenter)
+                    eyeDat['y'].append(yCenter)
+                    eyeDat['radius'].append(radius)
 
                 # default to quality control passed
                 eyeDat['qc'].append(0)
@@ -194,7 +205,7 @@ def preprocess_pupil_run(userID, expID):
 
             else:
                 # frame has failed QC
-                eyeDat['qc'].append(0)
+                eyeDat['qc'].append(1)
                 eyeDat['x'].append(np.nan)
                 eyeDat['y'].append(np.nan)
                 eyeDat['radius'].append(np.nan)
@@ -254,54 +265,34 @@ def preprocess_pupil_run(userID, expID):
                         plt.scatter(eyeX[iFrame, :], eyeY[iFrame, :])
                         plt.show()
 
-        # do some further quality control
-        # remove points where pupil looks dodgy
-        # validFrames = np.ones(len(videoTiming['pupil']['x']))
-        # validFrames[np.isnan(videoTiming['pupil']['x'])] = 0
-        # validFrames[videoTiming['pupil']['radius'] > 100] = 0
-        # validFrames[videoTiming['pupil']['x'] > np.median(videoTiming['pupil']['x'][validFrames==1])+100] = 0
-        # validFrames[videoTiming['pupil']['x'] < np.median(videoTiming['pupil']['x'][validFrames==1])-100] = 0
-        # validFrames[videoTiming['pupil']['y'] > np.median(videoTiming['pupil']['y'][validFrames==1])+100] = 0
-        # validFrames[videoTiming['pupil']['y'] < np.median(videoTiming['pupil']['y'][validFrames==1])-100] = 0
-        # videoTiming['pupil']['x'][validFrames==0] = np.nan
-        # videoTiming['pupil']['y'][validFrames==0] = np.nan
-        # videoTiming['pupil']['radius'][validFrames==0] = np.nan
+        # convert lists to arrays
+        eyeDat['x'] = np.array(eyeDat['x'])
+        eyeDat['y'] = np.array(eyeDat['y']) 
+        eyeDat['radius'] = np.array(eyeDat['radius']) 
+        eyeDat['qc'] = np.array(eyeDat['qc']) 
 
+        # filter x / y / rad
+        eyeDat['x'] = median_filter(eyeDat['x'],[9])
+        eyeDat['y'] = median_filter(eyeDat['y'],[9])
+        eyeDat['radius'] = median_filter(eyeDat['radius'],[9])
+        
         # calculate pupil velocity
         xdiffs = np.diff(eyeDat['x'])
         ydiffs = np.diff(eyeDat['y'])
         eucla_diff = np.sqrt(xdiffs**2 + ydiffs**2)
         eyeDat['velocity'] = np.convolve(eucla_diff, np.ones(10), 'same')
         eyeDat['velocity'] = np.append(eyeDat['velocity'], eyeDat['velocity'][-1])
+        eyeDat['velocity'] = np.array(eyeDat['velocity']) 
 
-        # store detected eye details with timeline timestamps
-        # load video timestamps
-        loggedFrameTimes = np.load(os.path.join(exp_dir_processed_recordings,'eye_frame_times.npy'))
-        # resample to 10Hz constant rate
-        newTimeVector = np.arange(round(loggedFrameTimes[0]), round(loggedFrameTimes[-1]), 0.1)
-        frameVector = np.arange(0,len(eyeDat['x']))
-        eyeDat2 = {}
-        eyeDat2['t'] = newTimeVector
-        eyeDat2['x'] = np.interp(newTimeVector, loggedFrameTimes, eyeDat['x'])
-        eyeDat2['y'] = np.interp(newTimeVector, loggedFrameTimes, eyeDat['y'])
-        eyeDat2['radius'] = np.interp(newTimeVector, loggedFrameTimes, eyeDat['radius'])
-        eyeDat2['velocity'] = np.interp(newTimeVector, loggedFrameTimes, eyeDat['velocity'])
-        eyeDat2['qc'] = np.interp(newTimeVector, loggedFrameTimes, eyeDat['qc'])
-        eyeDat2['frame'] = np.round(np.interp(newTimeVector, loggedFrameTimes, frameVector))
         if iVid == 0:
             pickle_out = open(os.path.join(exp_dir_processed_recordings,'dlcEyeLeft.pickle'),"wb")
             pickle.dump(eyeDat, pickle_out)
-            pickle_out.close()
-            pickle_out = open(os.path.join(exp_dir_processed_recordings,'dlcEyeLeft_resampled.pickle'),"wb")
-            pickle.dump(eyeDat2, pickle_out)
             pickle_out.close()
         else:
             pickle_out = open(os.path.join(exp_dir_processed_recordings,'dlcEyeRight.pickle'),"wb")
             pickle.dump(eyeDat, pickle_out)
             pickle_out.close()
-            pickle_out = open(os.path.join(exp_dir_processed_recordings,'dlcEyeRight_resampled.pickle'),"wb")
-            pickle.dump(eyeDat2, pickle_out)
-            pickle_out.close()           
+        print(f'{iFrame}/{dlc_data.shape[0]-1} - {(iFrame+1)/dlc_data.shape[0]*100:.2f}% complete'+f' Frame rate = {(1/(time.time()-lastFrame))*displayInterval:.2f}', end='\r')        
     print()
     print('Done without errors')
 
