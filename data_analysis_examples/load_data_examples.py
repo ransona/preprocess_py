@@ -51,12 +51,18 @@ eye_left_cut = pickle.load(open(os.path.join(exp_dir_processed_cut,'eye_left_cut
 print(eye_left_cut['x'].shape) # <- (trial,time)
 # make a plot showing pupil radius during all trials
 plt.figure()
+# subtract radius at t = 0
+t0_sample = np.argmax(eye_left_cut['t'] >= 0)
+radius = eye_left_cut['radius']
+t0_column = radius[:,t0_sample,np.newaxis] #np.newaxis
+radius = radius - np.tile(t0_column,(1,radius.shape[1]))
 # rotate 90 to make it plot each trial as a trace
-plt.plot(eye_left_cut['t'],np.rot90(eye_left_cut['radius']))
+
+plt.plot(eye_left_cut['t'],np.transpose(radius))
 plt.title('Pupil radius during each trial')
 plt.xlabel('Time (s)')
 plt.ylabel('Pupil radius (pix)')
-
+plt.show()
 
 # Calcium imaging data
 # Load uncut trace
@@ -77,7 +83,8 @@ s2p_dF_cut = pickle.load(open(os.path.join(exp_dir_processed_cut,'s2p_ch0_dF_cut
 # make a plot showing dF/F during all trials for roi 0
 roi = 0
 plt.figure()
-plt.plot(s2p_dF_cut['t'],np.rot90(s2p_dF_cut['dF'][roi,:,:]))
+plt.plot(s2p_dF_cut['t'],np.transpose(s2p_dF_cut['dF'][roi,:,:]))
 plt.title('dF during each trial')
 plt.xlabel('Time (s)')
 plt.ylabel('dF')
+plt.show()
