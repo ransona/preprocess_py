@@ -3,6 +3,7 @@ import os
 import organise_paths
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 userID = 'adamranson'
 expID = '2023-03-01_01_ESMT107'  # <-- this is a stim artifact experiment
@@ -50,19 +51,17 @@ eye_left_cut = pickle.load(open(os.path.join(exp_dir_processed_cut,'eye_left_cut
 # print the shape of the array
 print(eye_left_cut['x'].shape) # <- (trial,time)
 # make a plot showing pupil radius during all trials
-plt.figure()
-# subtract radius at t = 0
-t0_sample = np.argmax(eye_left_cut['t'] >= 0)
-radius = eye_left_cut['radius']
-t0_column = radius[:,t0_sample,np.newaxis] #np.newaxis
-radius = radius - np.tile(t0_column,(1,radius.shape[1]))
-# rotate 90 to make it plot each trial as a trace
+# plt.figure()
+# # subtract radius at t = 0
+# t0_sample = np.argmax(eye_left_cut['t'] >= 0)
+# t0_column = eye_left_cut['radius'][:,t0_sample,np.newaxis] #np.newaxis
+# eye_left_cut['radius'] = eye_left_cut['radius'] - np.tile(t0_column,(1,eye_left_cut['radius'].shape[1]))
 
-plt.plot(eye_left_cut['t'],np.transpose(radius))
-plt.title('Pupil radius during each trial')
-plt.xlabel('Time (s)')
-plt.ylabel('Pupil radius (pix)')
-plt.show()
+# plt.plot(eye_left_cut['t'],np.transpose(eye_left_cut['radius']))
+# plt.title('Pupil radius during each trial')
+# plt.xlabel('Time (s)')
+# plt.ylabel('Pupil radius (pix)')
+# plt.show()
 
 # Calcium imaging data
 # Load uncut trace
@@ -78,13 +77,40 @@ ca_data = pickle.load(open(os.path.join(exp_dir_processed_recordings,('s2p_ch' +
 # plt.plot(ca_data['t'],ca_data['dF'][0,:])
 # plt.show()
 
-# load cut traces
+# # load cut traces
 s2p_dF_cut = pickle.load(open(os.path.join(exp_dir_processed_cut,'s2p_ch0_dF_cut.pickle'), "rb"))
-# make a plot showing dF/F during all trials for roi 0
-roi = 0
-plt.figure()
-plt.plot(s2p_dF_cut['t'],np.transpose(s2p_dF_cut['dF'][roi,:,:]))
-plt.title('dF during each trial')
-plt.xlabel('Time (s)')
-plt.ylabel('dF')
-plt.show()
+# # make a plot showing dF/F during all trials for roi 0
+# # s2p_dF_cut['dF'][roi,trial,timepoint]
+# roi = 0
+# plt.figure()
+# plt.plot(s2p_dF_cut['t'],np.transpose(s2p_dF_cut['dF'][roi,:,:])) 
+# plt.title('dF during each trial')
+# plt.xlabel('Time (s)')
+# plt.ylabel('dF')
+# plt.show()
+
+# load trial stimulus information
+all_trials = pd.read_csv(os.path.join(exp_dir_processed, expID + '_all_trials.csv'))
+# find trials which are stimulus 1 (stim), feature 1 angle is 0 degress (F1_angle), and 
+# start more than 80 seconds into the experiment (time):
+trial_indices = all_trials.loc[(all_trials['stim'] == 1) & (all_trials['F1_angle'] == 0) & (all_trials['time'] > 80)].index
+# plot the dF/F response of roi 0 during these trials
+roi = 0 
+# Create a 3-row subplot to plot pupil position, radius and velocity
+fig, axs = plt.subplots(3, 1, figsize=(8, 10))
+# Plot data of each trial:
+axs[0].plot(s2p_dF_cut['t'],np.transpose(s2p_dF_cut['dF'][roi,trial_indices,:]),color='lightgray')
+# Plot average response over trials (remember s2p_dF_cut['dF'][roi,trial,timepoint])
+average_resp = np.mean(s2p_dF_cut['dF'][roi,trial_indices,:],axis = 0)
+axs[0].plot(s2p_dF_cut['t'],average_resp,color='black')
+axs[0].set_title('dF Response')
+
+# Use the same trial_indices to plot pupil on the same trials
+eye_left_cut = pickle.load(open(os.path.join(exp_dir_processed_cut,'eye_left_cut.pickle'), "rb"))
+axs[1].plot(eye_left_cut['t'], np.transpose(eye_left_cut['radius'][trial_indices,:]))
+axs[1].set_title('Pupil radius')
+
+# Use the same trial_indices to plot wheel velocity on the same trials
+wheel = pickle.load(open(os.path.join(exp_dir_processed_cut,'wheel.pickle'), "rb"))
+axs[2].plot(wheel['t'], np.transpose(wheel['speed'][trial_indices,:]))
+axs[2].set_title('Wheel velocity')
