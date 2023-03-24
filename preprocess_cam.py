@@ -29,7 +29,7 @@ def preprocess_cam_run(userID, expID):
     camIdx = np.where(np.isin(tl_chNames, 'EyeCamera'))[0][0]
     # Extract the camera pulse trace and the corresponding frame pulse times
     camPulseTrace = (tl_daqData[:, camIdx] > 2.5).astype(int)
-    framePulseTimes = tl_time[np.where(np.diff(camPulseTrace) == 1)]
+    framePulseTimes = tl_time[np.where(np.diff(camPulseTrace) == 1)] # each pos going edge = 200 frames (except first)
 
     # Do a quality check on the frame pulse times
     if np.min(np.diff(framePulseTimes)) < 16:

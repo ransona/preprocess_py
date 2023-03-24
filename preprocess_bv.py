@@ -6,6 +6,7 @@ from scipy import interpolate
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 import organise_paths
+import pickle
 
 def run_preprocess_bv(userID, expID):
     print('Starting run_preprocess_bv...')
@@ -97,20 +98,21 @@ def run_preprocess_bv(userID, expID):
     wheelPos=np.append(wheelPos,wheelPos[-1])
     wheelTimestamps = mdl1.predict(Encoder.Timestamp.values.reshape(-1,1))
     # Resample wheel to linear timescale
-    wheelLinearTimescale = np.arange(wheelTimestamps[0], wheelTimestamps[-1], 0.01)
+    wheelLinearTimescale = np.arange(np.ceil(wheelTimestamps[0]), np.floor(wheelTimestamps[-1]), 0.05)
     f = interpolate.interp1d(wheelTimestamps, wheelPos, kind='linear')
-    wheelPos2 = pd.Series(f(wheelLinearTimescale)).rolling(window=50, center=True).mean().fillna(method='ffill').fillna(
-        method='bfill')
+    wheelPos2 = pd.Series(f(wheelLinearTimescale)).rolling(window=50, center=True).mean().fillna(method='ffill').fillna(method='bfill')
     wheelSpeed = ((np.insert(np.diff(wheelPos2.values) * -1, 0, 0) * (62 / 1024)) * 100)
-
+    # add filler data for period before bv starts when wheel isn't stored
+    filler_t = np.arange(0,wheelLinearTimescale[0],0.05)
+    filler_position = np.tile(wheelPos2[0],[filler_t.shape[0]])
+    filler_speed = np.tile(wheelSpeed[0],[filler_t.shape[0]])
     # Save data
-    bvDataRoot = os.path.join(exp_dir_processed, 'bonsai')
-    if not os.path.exists(bvDataRoot):
-        os.mkdir(bvDataRoot)
-    np.savetxt(os.path.join(exp_dir_processed_recordings, 'WheelPos.csv'), np.column_stack((wheelLinearTimescale, wheelPos2)),
-            delimiter=',')
-    np.savetxt(os.path.join(exp_dir_processed_recordings, 'WheelSpeed.csv'), np.column_stack((wheelLinearTimescale, wheelSpeed)),
-            delimiter=',')
+    wheel = {}
+    wheel['position'] = np.concatenate([filler_position,np.array(wheelPos2)],axis = 0)
+    wheel['speed'] = np.concatenate([filler_speed,np.array(wheelSpeed)],axis = 0)
+    wheel['t'] = np.concatenate([filler_t,np.array(wheelLinearTimescale)],axis = 0)
+    with open(os.path.join(exp_dir_processed_recordings, 'wheel.pickle'), 'wb') as f: pickle.dump(wheel, f)
+
     # output a csv file which contains dataframe of all trials with first column showing trial onset time
     # read the all trials file, append trial onset times to first column (trialOnsetTimesTL)
     all_trials = pd.read_csv(os.path.join(exp_dir_raw, expID + '_all_trials.csv'))

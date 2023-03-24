@@ -20,7 +20,7 @@ def sparse_cat_np(original_np,new_np):
 
     if y_diff > 0:
         # new is bigger than original
-        original_np = np.pad(original_np, (0,y_diff), 'constant', constant_values=np.nan)
+        original_np = np.pad(original_np, ((0,0),(0,y_diff)), mode = 'constant', constant_values = np.nan)
     elif y_diff < 0:
         # new is smaller than original
         padding = np.empty([1,abs(y_diff)])
@@ -36,6 +36,7 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
     animalID, remote_repository_root, \
         processed_root, exp_dir_processed, \
             exp_dir_raw = organise_paths.find_paths(userID, expID)
+    
     exp_dir_processed_recordings = os.path.join(processed_root, animalID, expID,'recordings')
     exp_dir_processed_cut = os.path.join(exp_dir_processed,'cut')
     os.makedirs(exp_dir_processed_cut, exist_ok = True)
@@ -162,32 +163,42 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
     with open(os.path.join(exp_dir_processed_cut,'eye_left_cut.pickle'), 'wb') as f: pickle.dump(eye_cut_left, f)        
     with open(os.path.join(exp_dir_processed_cut,'eye_right_cut.pickle'), 'wb') as f: pickle.dump(eye_cut_right, f)  
 
-    ### Cut video frame number data ###
-    ephys_combined = np.load(os.path.join(exp_dir_processed_recordings,'ephys.npy'))
-    # loop through all trials collecting the ephys traces
-    ephys_cut = {}
+    ### Cut wheel data ###
+    # wheel['position']
+    # wheel['speed']
+    # wheel['t']
+    wheel = pickle.load(open(os.path.join(exp_dir_processed_recordings,'wheel.pickle'), "rb"))
+    # loop through all trials collecting the wheel traces
+    wheel_cut = {}
     for iTrial in range(all_trials.shape[0]):
         trial_onset_time = all_trials.loc[iTrial,'time']
         trial_end_time = trial_onset_time + all_trials.loc[iTrial,'duration']
-        # collect samples from ephys
-        first_sample = np.argmax(ephys_combined[0,:] >= trial_onset_time - pre_time)
-        last_sample = np.argmax(ephys_combined[0,:] >= trial_end_time + post_time)
+        # collect samples from wheel
+        first_sample = np.argmax(wheel['t'] >= trial_onset_time - pre_time)
+        last_sample = np.argmax(wheel['t'] >= trial_end_time + post_time)
         if iTrial == 0:
-            ephys_cut[0] = ephys_combined[np.newaxis,1,first_sample:last_sample]
-            ephys_cut[1] = ephys_combined[np.newaxis,2,first_sample:last_sample]
+            wheel_cut['position'] = wheel['position'][np.newaxis,first_sample:last_sample]
+            wheel_cut['speed'] = wheel['speed'][np.newaxis,first_sample:last_sample]
         else:
-            ephys_cut[0] = sparse_cat_np(ephys_cut[0],ephys_combined[1,first_sample:last_sample])
-            ephys_cut[1] = sparse_cat_np(ephys_cut[1],ephys_combined[2,first_sample:last_sample])
+            wheel_cut['position'] = sparse_cat_np(wheel_cut['position'],wheel['position'][np.newaxis,first_sample:last_sample])
+            wheel_cut['speed'] = sparse_cat_np(wheel_cut['speed'],wheel['speed'][np.newaxis,first_sample:last_sample])
+    
+    # make time vector
+    wheel_sample_rate = 1/np.round(wheel['t'][1]-wheel['t'][0],4)
+    wheel_cut['t'] = np.linspace(0,wheel_cut['position'].shape[1]/wheel_sample_rate,wheel_cut['position'].shape[1]) - pre_time
+    # save in pickle
+    with open(os.path.join(exp_dir_processed_cut,'wheel.pickle'), 'wb') as f: pickle.dump(wheel_cut, f)   
 
     print('done')
 # for debugging:
 def main():
+    x=0
     # expID
-    expID = '2023-02-28_11_ESMT116'
-    expID = '2023-03-01_01_ESMT107'
-    # user ID to use to place processed data
-    userID = 'adamranson'
-    run_preprocess_cut(userID, expID,2,2)
+    # expID = '2023-02-28_11_ESMT116'
+    # expID = '2023-03-01_01_ESMT107'
+    # # user ID to use to place processed data
+    # userID = 'adamranson'
+    # run_preprocess_cut(userID, expID,2,2)
 
 if __name__ == "__main__":
     main()

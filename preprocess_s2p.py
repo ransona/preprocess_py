@@ -23,8 +23,7 @@ def run_preprocess_s2p(userID, expID):
     tl_daqData = Timeline['daqData'][0,0]
     tl_time    = Timeline['time'][0][0]
 
-    doMerge = False
-    subtract_overall_frame = True
+    subtract_overall_frame = False
     resampleFreq = 30
     neuropilWeight = 0.7
     # initiate these as dict:
