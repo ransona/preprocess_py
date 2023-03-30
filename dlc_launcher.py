@@ -130,6 +130,7 @@ def dlc_launcher_run(userID, expID):
     crop_vids(userID, expID)
     # crop_vids(userID, expID)
     config_path = '/data/common/dlc_models/eye/config.yaml'
+    
     videos = os.path.join(exp_dir_processed,(expID+'_eye1_left.avi'))
     destfolder = exp_dir_processed
     print('Starting left eye video...')

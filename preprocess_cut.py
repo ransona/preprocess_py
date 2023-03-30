@@ -6,7 +6,6 @@ from scipy import interpolate
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 from scipy import signal
-import sparse
 import pickle
 import organise_paths 
 
