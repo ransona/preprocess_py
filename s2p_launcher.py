@@ -11,6 +11,12 @@ def s2p_launcher_run(userID,expID,tif_path,config_path):
     animalID, remote_repository_root, \
         processed_root, exp_dir_processed, \
             exp_dir_raw = organise_paths.find_paths(userID, expID)
+    # # remove any existing data
+    # search_str = 'string_to_search'
+    # for foldername in os.listdir(exp_dir_processed):
+    #     if search_str in foldername and os.path.isdir(os.path.join(exp_dir_processed, foldername)):
+    #         os.rmdir(os.path.join(exp_dir_processed, foldername))
+            
     # load the saved config
     ops = np.load(config_path,allow_pickle=True)
     ops = ops.item()
