@@ -7,14 +7,7 @@ import numpy as np
 import subprocess
 import os
 
-# def run_s2p_launcher(userID, expID, suite2p_config): 
-    #run_test_conda_run2(inputvar)
-def main():
-    print('Starting S2P Launcher...')
-    userID = sys.argv[1]
-    expID = sys.argv[2]
-    tif_path = sys.argv[3]
-    config_path = sys.argv[4]
+def s2p_launcher_run(userID,expID,tif_path,config_path):
     animalID, remote_repository_root, \
         processed_root, exp_dir_processed, \
             exp_dir_raw = organise_paths.find_paths(userID, expID)
@@ -30,6 +23,26 @@ def main():
     
     output_ops = suite2p.run_s2p(ops=ops, db=db)  
 
+# for debugging:
+def main():
+    print('Starting S2P Launcher...')
+    try:
+        # has been run from sys command line after conda activate
+        userID = sys.argv[1]
+        expID = sys.argv[2]
+        tif_path = sys.argv[3]
+        config_path = sys.argv[4]
+    except:
+        # debug mode
+        expID = '2023-02-24_01_ESMT116'
+        userID = 'adamranson'
+        animalID, remote_repository_root, \
+            processed_root, exp_dir_processed, \
+                exp_dir_raw = organise_paths.find_paths(userID, expID)
+        tif_path = exp_dir_raw
+        config_path = os.path.join('/home',userID,'data/configs/s2p_configs','ch_1_depth_1.npy')
+
+    s2p_launcher_run(userID,expID,tif_path,config_path)
 
 if __name__ == "__main__":
     main()

@@ -49,8 +49,6 @@ def preprocess_pupil_run(userID, expID):
         # read the csv deeplabcut output file
         dlc_data = pd.read_csv(os.path.join(exp_dir_processed, dlc_filenames[iVid]), delimiter=',',skiprows=[0,1,2],header=None)
 
-        # remove first column
-        z = dlc_data.iloc[1,1]
         eyeX = dlc_data.iloc[:,[25,28,31,34]].values
         eyeY = dlc_data.loc[:,[26,29,32,35]].values
         pupilX = dlc_data.loc[:,1:22:3].values
@@ -114,6 +112,12 @@ def preprocess_pupil_run(userID, expID):
         eyeDat['y'] = []
         eyeDat['radius'] = []
         eyeDat['qc'] = []
+        eyeDat['eye_lid_x'] = np.full((dlc_data.shape[0],40),np.nan)
+        eyeDat['eye_lid_y'] = np.full((dlc_data.shape[0],40),np.nan)
+        eyeDat['eyeX'] = eyeX
+        eyeDat['eyeY'] = eyeY
+        eyeDat['pupilX'] = pupilX
+        eyeDat['pupilY'] = pupilY
 
         lastFrame = time.time()
         for iFrame in range(dlc_data.shape[0]):
@@ -125,6 +129,9 @@ def preprocess_pupil_run(userID, expID):
             # check spacing of left and right corners is about right compared to
             # median of whole recording
             cornerDistanceDiff = np.abs((eyeX[iFrame,0]-eyeX[iFrame,2])-eyeWidth)/eyeWidth
+            if eyeWidth == 0:
+                z=0
+
             # check top and bottom lid mid points are around halfway between eye
             # corners in x direction
             min_corner_middle_distance = np.min(np.abs([
@@ -144,14 +151,16 @@ def preprocess_pupil_run(userID, expID):
                 # 1 = lateral / 2 = sup / 3 = medial / 4 = inf
                 topLid = np.polyfit(eyeX[iFrame, [0, 1, 2]], eyeY[iFrame, [0, 1, 2]], 2)
                 botLid = np.polyfit(eyeX[iFrame, [0, 3, 2]], eyeY[iFrame, [0, 3, 2]], 2)
-
                 # generate points
-                xVals = np.linspace(eyeX[iFrame, 0], eyeX[iFrame, 2])
+                xVals = np.linspace(eyeX[iFrame, 0], eyeX[iFrame, 2],20)
                 # for upper lid
                 yVals = topLid[0] * xVals**2 + topLid[1] * xVals + topLid[2]
                 # for lower lid
                 yVals = np.concatenate([yVals, botLid[0] * np.flipud(xVals)**2 + botLid[1] * np.flipud(xVals) + botLid[2]])
                 xVals = np.concatenate([xVals, np.flipud(xVals)])
+                # add points to eyeDat to be used later for plotting eye
+                eyeDat['eye_lid_x'][iFrame,:] = xVals.astype(int)
+                eyeDat['eye_lid_y'][iFrame,:] = yVals.astype(int)   
                 # check if y values
                 # make a poly mask using the points
                 rr, cc = polygon(yVals, xVals)
@@ -216,9 +225,12 @@ def preprocess_pupil_run(userID, expID):
                     eyeDat['inEye']=np.nan
                 else:
                     # add a row of nans of the right shape (width)
-                    eyeDat['topLid']=np.concatenate((eyeDat['topLid'],np.full((1,eyeDat['topLid'].shape[1]),np.nan)),axis=0)
-                    eyeDat['botLid']=np.concatenate((eyeDat['botLid'],np.full((1,eyeDat['botLid'].shape[1]),np.nan)),axis=0)
-                    eyeDat['inEye']=np.concatenate((eyeDat['inEye'],np.full((1,eyeDat['inEye'].shape[1]),np.nan)),axis=0)
+                    try:
+                        eyeDat['topLid']=np.concatenate((eyeDat['topLid'],np.full((1,eyeDat['topLid'].shape[1]),np.nan)),axis=0)
+                        eyeDat['botLid']=np.concatenate((eyeDat['botLid'],np.full((1,eyeDat['botLid'].shape[1]),np.nan)),axis=0)
+                        eyeDat['inEye']=np.concatenate((eyeDat['inEye'],np.full((1,eyeDat['inEye'].shape[1]),np.nan)),axis=0)
+                    except:
+                        z = 0
 
             if displayOn:
                 if iFrame == 0:
@@ -299,9 +311,9 @@ def preprocess_pupil_run(userID, expID):
 # for debugging:
 def main():
     # expID
-    expID = '2023-02-28_11_ESMT116'
+    expID = '2023-02-24_01_ESMT116'
     # user ID to use to place processed data
-    userID = 'adamranson'
+    userID = 'melinatimplalexi'
     preprocess_pupil_run(userID, expID)
 
 if __name__ == "__main__":

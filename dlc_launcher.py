@@ -3,6 +3,7 @@ import organise_paths
 import sys 
 import cv2
 import deeplabcut
+import subprocess
 
 def crop_vids(userID, expID): 
     print('Cropping videos...')
@@ -45,7 +46,7 @@ def crop_vids(userID, expID):
 
             # Percentage
             xx = cnt *100/frames
-            print(int(xx),'%')
+            #print(int(xx),'%')
 
             # Saving from the desired frames
             # if 15 <= cnt <= 90:
@@ -99,7 +100,7 @@ def crop_vids(userID, expID):
             crop_frame=cv2.flip(crop_frame,1)
             # Percentage
             xx = cnt *100/frames
-            print(int(xx),'%')
+            #print(int(xx),'%')
 
             # Saving from the desired frames
             #if 15 <= cnt <= 90:
@@ -120,15 +121,11 @@ def crop_vids(userID, expID):
     cap.release()
     out.release()
 
-def main():
-    print('Starting DLC Launcher...')
-    userID = sys.argv[1]
-    expID = sys.argv[2]
-
+def dlc_launcher_run(userID, expID):
     animalID, remote_repository_root, \
         processed_root, exp_dir_processed, \
             exp_dir_raw = organise_paths.find_paths(userID, expID)
-
+    print('Starting cropping videos...')
     # crop raw video into videos for each eye
     crop_vids(userID, expID)
     # crop_vids(userID, expID)
@@ -137,15 +134,29 @@ def main():
     destfolder = exp_dir_processed
     print('Starting left eye video...')
     #deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, trainingsetindex=0, gputouse=None, save_as_csv=True, destfolder=destfolder, dynamic=(True, .5, 10))
-    deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, gputouse=None, save_as_csv=True, destfolder=destfolder)
+    deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, gputouse=0, save_as_csv=True, destfolder=destfolder)
     deeplabcut.create_labeled_video(config_path, videos, save_frames = True)
 
     videos= os.path.join(exp_dir_processed,(expID+'_eye1_right.avi'))
     destfolder = exp_dir_processed
     print('Starting right eye video...')
     #deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, trainingsetindex=0, gputouse=None, save_as_csv=True, destfolder=destfolder, dynamic=(True, .5, 10))
-    deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, gputouse=None, save_as_csv=True, destfolder=destfolder)
+    deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, gputouse=0, save_as_csv=True, destfolder=destfolder)
     deeplabcut.create_labeled_video(config_path, videos, save_frames = True)
+
+# for debugging:
+def main():
+    print('Starting DLC Launcher...')
+    try:
+        # has been run from sys command line after conda activate
+        userID = sys.argv[1]
+        expID = sys.argv[2]
+    except:
+        # debug mode
+        expID = '2023-02-24_01_ESMT116'
+        userID = 'adamranson'
+
+    dlc_launcher_run(userID, expID)
 
 if __name__ == "__main__":
     main()
