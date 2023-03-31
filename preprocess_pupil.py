@@ -1,5 +1,5 @@
 # take dlc pipil output and fits circle to pupil etc
-
+import sys
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,7 +23,7 @@ def preprocess_pupil_run(userID, expID):
         os.mkdir(exp_dir_processed_recordings)
 
     displayOn = False
-    displayInterval = 100
+    displayInterval = 1000
 
     if displayOn:
         f = 0 #figure()
@@ -222,13 +222,13 @@ def preprocess_pupil_run(userID, expID):
                     # initialise data structure
                     eyeDat['topLid']=np.full([1,3],np.nan)
                     eyeDat['botLid']=np.full([1,3],np.nan)
-                    eyeDat['inEye']=np.nan
+                    eyeDat['inEye']=np.full([1,8],np.nan)
                 else:
                     # add a row of nans of the right shape (width)
                     try:
                         eyeDat['topLid']=np.concatenate((eyeDat['topLid'],np.full((1,eyeDat['topLid'].shape[1]),np.full([1,3],np.nan))),axis=0)
                         eyeDat['botLid']=np.concatenate((eyeDat['botLid'],np.full((1,eyeDat['botLid'].shape[1]),np.full([1,3],np.nan))),axis=0)
-                        eyeDat['inEye']=np.concatenate((eyeDat['inEye'],np.full((1,eyeDat['inEye'].shape[1]),np.nan)),axis=0)
+                        eyeDat['inEye']=np.concatenate((eyeDat['inEye'],np.full((1,eyeDat['inEye'].shape[1]),np.full([1,8],np.nan))),axis=0)
                     except:
                         z = 0
 
@@ -310,11 +310,17 @@ def preprocess_pupil_run(userID, expID):
 
 # for debugging:
 def main():
-    # expID
-    expID = '2023-02-24_01_ESMT116'
-    # user ID to use to place processed data
-    userID = 'melinatimplalexi'
-    preprocess_pupil_run(userID, expID)
+    try:
+        # has been run from sys command line after conda activate
+        userID = sys.argv[1]
+        expID = sys.argv[2]
+        print('Parameters received via command line')
+    except:
+        # debug mode
+        print('Parameters received via debug mode')
+        userID = 'melinatimplalexi'
+        expID = '2023-02-28_15_ESMT116'
+    preprocess_pupil_run(userID, expID)    
 
 if __name__ == "__main__":
     main()
