@@ -58,7 +58,7 @@ def main():
     rundlc          = True
     runfitpupil     = True
     #run_preprocess_step1(jobID,userID, expID,suite2p_config, runs2p, rundlc, runfitpupil)
-    run_preprocess_step1('default','melinatimplalexi', '2023-03-28_04_ESMT116','ch_1_depth_1.npy', True, True, True)
+    run_preprocess_step1("2023_03_31_00_21_17_melinatimplalexi_2023-02-28_15_ESMT116.pickle","melinatimplalexi","2023-02-28_15_ESMT116","ch_1_depth_1.npy",True,True,True)
     # cmd = ['python','/home/adamranson/code/preprocess_py/test_print.py']
 
     # # Run the command

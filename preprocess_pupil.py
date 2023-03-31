@@ -220,14 +220,14 @@ def preprocess_pupil_run(userID, expID):
                 eyeDat['radius'].append(np.nan)
                 if iFrame==0:
                     # initialise data structure
-                    eyeDat['topLid']=np.nan
-                    eyeDat['botLid']=np.nan
+                    eyeDat['topLid']=np.full([1,3],np.nan)
+                    eyeDat['botLid']=np.full([1,3],np.nan)
                     eyeDat['inEye']=np.nan
                 else:
                     # add a row of nans of the right shape (width)
                     try:
-                        eyeDat['topLid']=np.concatenate((eyeDat['topLid'],np.full((1,eyeDat['topLid'].shape[1]),np.nan)),axis=0)
-                        eyeDat['botLid']=np.concatenate((eyeDat['botLid'],np.full((1,eyeDat['botLid'].shape[1]),np.nan)),axis=0)
+                        eyeDat['topLid']=np.concatenate((eyeDat['topLid'],np.full((1,eyeDat['topLid'].shape[1]),np.full([1,3],np.nan))),axis=0)
+                        eyeDat['botLid']=np.concatenate((eyeDat['botLid'],np.full((1,eyeDat['botLid'].shape[1]),np.full([1,3],np.nan))),axis=0)
                         eyeDat['inEye']=np.concatenate((eyeDat['inEye'],np.full((1,eyeDat['inEye'].shape[1]),np.nan)),axis=0)
                     except:
                         z = 0
