@@ -66,8 +66,10 @@ def main():
     rundlc          = True
     runfitpupil     = True
     #run_preprocess_step1(jobID,userID, expID,suite2p_config, runs2p, rundlc, runfitpupil)
-    run_preprocess_step1("2023_03_31_00_21_17_melinatimplalexi_2023-02-28_15_ESMT116.pickle","melinatimplalexi","2023-02-28_15_ESMT116","ch_1_depth_1.npy",False,False,True)
+    run_preprocess_step1("debug","pmateosaparicio","2022-02-08_03_ESPM040","ch_1_depth_1.npy",False,False,True)
     # cmd = ['python','/home/adamranson/code/preprocess_py/test_print.py']
+    #pmateosaparicio_2022-02-08_03_ESPM040
+
 
     # # Run the command
     # with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:

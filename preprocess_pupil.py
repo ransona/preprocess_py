@@ -97,10 +97,10 @@ def preprocess_pupil_run(userID, expID):
         # calc some average values for eye to be used for QC later
         eyeWidth = (np.median(eyeX[:,0])-np.median(eyeX[:,2]))
         # clip coordinates to frame size
-        eyeX[eyeX>frameSize[1]] = frameSize[1]
-        eyeY[eyeY>frameSize[0]] = frameSize[0]
-        pupilX[pupilX>frameSize[1]] = frameSize[1]
-        pupilY[pupilY>frameSize[0]] = frameSize[0]
+        eyeX[eyeX>frameSize[1]-1] = frameSize[1]-1
+        eyeY[eyeY>frameSize[0]-1] = frameSize[0]-1
+        pupilX[pupilX>frameSize[1]-1] = frameSize[1]-1
+        pupilY[pupilY>frameSize[0]-1] = frameSize[0]-1
         eyeX[eyeX<0] = 0
         eyeY[eyeY<0] =0
         pupilX[pupilX<0] = 0
@@ -318,8 +318,8 @@ def main():
     except:
         # debug mode
         print('Parameters received via debug mode')
-        userID = 'melinatimplalexi'
-        expID = '2023-02-28_15_ESMT116'
+        userID = 'pmateosaparicio'
+        expID = '2022-02-08_03_ESPM040'
     preprocess_pupil_run(userID, expID)    
 
 if __name__ == "__main__":
