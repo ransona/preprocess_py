@@ -40,11 +40,11 @@ def preprocess_pupil_run(userID, expID):
     for iVid in range(0, len(dlc_filenames)):
         print()
         print('Starting video ' + str(iVid))
-        videoPath = os.path.join(exp_dir_processed, vid_filenames[iVid])
-        v = cv2.VideoCapture(videoPath)
+        #videoPath = os.path.join(exp_dir_processed, vid_filenames[iVid])
+        #v = cv2.VideoCapture(videoPath)
 
-        if not v.isOpened():
-            raise Exception('Error: Eye video file not found')
+        #if not v.isOpened():
+        #    raise Exception('Error: Eye video file not found')
 
         # read the csv deeplabcut output file
         dlc_data = pd.read_csv(os.path.join(exp_dir_processed, dlc_filenames[iVid]), delimiter=',',skiprows=[0,1,2],header=None)
@@ -62,9 +62,9 @@ def preprocess_pupil_run(userID, expID):
         # eye x and eye y are always needed as a minimum to process a frame so
         # we ensure below that these coordinates all have confidence > 0.8
         eyeMinConfid = np.min(dlc_data.loc[:,26::3], axis=1)
-        ret, firstFrame = v.read()
-        frameSize = np.squeeze(firstFrame[:,:,0]).shape
-        
+        #ret, firstFrame = v.read()
+        #frameSize = np.squeeze(firstFrame[:,:,0]).shape
+        frameSize = [478,742]
         # choose approximate eye area - points outside this will be considered
         # invalid
         roiLeft = np.median(eyeX[:,2],0).astype(int)

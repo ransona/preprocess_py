@@ -132,6 +132,12 @@ def dlc_launcher_run(userID, expID):
         if 'eye1_left' in filename:
             print('Deleting ' + filename)
             os.remove(os.path.join(exp_dir_processed, filename))
+    # removing all existing dlc data
+    for filename in os.listdir(exp_dir_processed):
+        if 'eye1_right' in filename:
+            print('Deleting ' + filename)
+            os.remove(os.path.join(exp_dir_processed, filename))
+
     print('Starting cropping videos...')
     # crop raw video into videos for each eye
     crop_vids(userID, expID)
@@ -161,8 +167,8 @@ def main():
         expID = sys.argv[2]
     except:
         # debug mode
-        expID = '2023-02-24_01_ESMT116'
-        userID = 'adamranson'
+        expID = '2022-02-08_03_ESPM040'
+        userID = 'pmateosaparicio'
     start_time = time.time()
     dlc_launcher_run(userID, expID)
     print('Time to run: ' + str(time.time() - start_time) + ' secs')
