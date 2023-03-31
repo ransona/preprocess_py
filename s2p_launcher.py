@@ -6,6 +6,8 @@ import organise_paths
 import numpy as np
 import subprocess
 import os
+import torch
+
 
 def s2p_launcher_run(userID,expID,tif_path,config_path):
     animalID, remote_repository_root, \
@@ -26,7 +28,7 @@ def s2p_launcher_run(userID,expID,tif_path,config_path):
         'save_disk': exp_dir_processed, # where bin is moved after processing
         'fast_disk': os.path.join('/data/fast',userID, animalID, expID),
         }
-    
+    torch.set_num_threads(16)
     output_ops = suite2p.run_s2p(ops=ops, db=db)  
 
 # for debugging:
