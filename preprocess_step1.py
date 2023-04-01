@@ -11,44 +11,87 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
     if runs2p:
         # run suite2p
         tif_path = exp_dir_raw
-        config_path = os.path.join('/home',os.getlogin(),'data/configs/s2p_configs',suite2p_config)
-        s2p_launcher = os.path.join('/home',os.getlogin(), 'code/preprocess_py/s2p_launcher.py')
+        config_path = os.path.join('/home','adamranson','data/configs/s2p_configs',suite2p_config)
+        s2p_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/s2p_launcher.py')
         #cmd = 'conda run --no-capture-output --name suite2p python '+ s2p_launcher +' "' + userID + '" "' + expID + '" "' + tif_path + '" "' + config_path + '"'
         cmd = ['conda','run' , '--no-capture-output','--name','suite2p','python',s2p_launcher,userID,expID,tif_path,config_path]
         print('Starting S2P launcher...')
         #subprocess.run(cmd, shell=True)
-        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+        # with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1) as proc:
             # Read the output line by line and process it
             for line in proc.stdout:
                 print(line)
                 allOut = allOut + line
 
+            # Read the error output line by line and process it
+            error_output = ""
+            for line in proc.stderr:
+                print("Error: " + line)
+                error_output += line
+
+            proc.wait()
+            if proc.returncode != 0:
+                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
+                    file.write(allOut)
+                raise Exception("An error occurred during the execution of suite2p")
+
+
     if rundlc:
         # run DLC
-        dlc_launcher = os.path.join('/home',os.getlogin(), 'code/preprocess_py/dlc_launcher.py')
+        dlc_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/dlc_launcher.py')
         print('Running DLC launcher...')
         cmd = ['conda','run' , '--no-capture-output','--name','dlc-cuda','python',dlc_launcher,userID,expID]
         # Run the command
-        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+        #with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1) as proc:
             # Read the output line by line and process it
             for line in proc.stdout:
                 print(line)
                 allOut = allOut + line
+
+            # Read the error output line by line and process it
+            error_output = ""
+            for line in proc.stderr:
+                print("Error: " + line)
+                error_output += line
+
+            proc.wait()
+            if proc.returncode != 0:
+                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
+                    file.write(allOut)
+                raise Exception("An error occurred during the execution of suite2p")
+
         # cmd = 'conda run --no-capture-output --name dlc-cuda python '+ dlc_launcher +' "' + userID + '" "' + expID + '"'
         # subprocess.run(cmd, shell=True)
 
     if runfitpupil:
         # run code to 
         # run code to take dlc output and fit circle to pupil etc
-        fit_pupil_launcher = os.path.join('/home',os.getlogin(), 'code/preprocess_py/preprocess_pupil.py')
+        fit_pupil_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/preprocess_pupil.py')
         print('Running pupil fit launcher...')
         cmd = ['conda','run' , '--no-capture-output','--name','sci','python',fit_pupil_launcher,userID,expID]
         # Run the command
-        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+        #with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1) as proc:
             # Read the output line by line and process it
             for line in proc.stdout:
                 print(line)
                 allOut = allOut + line
+
+            # Read the error output line by line and process it
+            error_output = ""
+            for line in proc.stderr:
+                print("Error: " + line)
+                error_output += line
+
+            proc.wait()
+            if proc.returncode != 0:
+                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
+                    file.write(allOut)
+                raise Exception("An error occurred during the execution of suite2p")
+
 
     # save command line output
     with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
