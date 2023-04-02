@@ -92,7 +92,6 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
                     file.write(allOut)
                 raise Exception("An error occurred during the execution of suite2p")
 
-
     # save command line output
     with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
         file.write(allOut)

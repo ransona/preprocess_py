@@ -11,6 +11,7 @@ import os
 import pandas as pd
 import pickle
 import organise_paths
+import shutil
 
 def preprocess_pupil_run(userID, expID):
     print('Starting preprocess_pupil_run...')
@@ -40,11 +41,15 @@ def preprocess_pupil_run(userID, expID):
     for iVid in range(0, len(dlc_filenames)):
         print()
         print('Starting video ' + str(iVid))
-        #videoPath = os.path.join(exp_dir_processed, vid_filenames[iVid])
-        #v = cv2.VideoCapture(videoPath)
 
-        #if not v.isOpened():
-        #    raise Exception('Error: Eye video file not found')
+        videoPath = os.path.join(exp_dir_processed, vid_filenames[iVid])
+        # check if cropped videos are in the processed data directory and if not try to copy from the remote repos
+        # this can be removed in the future 
+        if not os.path.isfile(os.path.join(exp_dir_processed, vid_filenames[iVid])):
+            try:
+                shutil.copyfile(os.path.join(exp_dir_raw, vid_filenames[iVid]),os.path.join(exp_dir_processed, vid_filenames[iVid]))
+            except:
+                print('Cropped eye videos not found on server')
 
         # read the csv deeplabcut output file
         dlc_data = pd.read_csv(os.path.join(exp_dir_processed, dlc_filenames[iVid]), delimiter=',',skiprows=[0,1,2],header=None)
@@ -318,8 +323,8 @@ def main():
     except:
         # debug mode
         print('Parameters received via debug mode')
-        userID = 'pmateosaparicio'
-        expID = '2022-02-08_03_ESPM040'
+        userID = 'adamranson'
+        expID = '2022-02-07_03_ESPM039'
     preprocess_pupil_run(userID, expID)    
 
 if __name__ == "__main__":
