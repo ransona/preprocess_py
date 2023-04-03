@@ -7,6 +7,9 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
     animalID, remote_repository_root, \
         processed_root, exp_dir_processed, \
             exp_dir_raw = organise_paths.find_paths(userID, expID)
+    # make the output directory if it doesn't already exist
+    os.makedirs(exp_dir_processed, exist_ok = True)
+
     allOut = ''
     if runs2p:
         # run suite2p
