@@ -1,6 +1,7 @@
 import os
 import organise_paths
 import subprocess
+import sys
 import preprocess_pupil
 
 def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, runfitpupil): 
@@ -27,6 +28,7 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
             for line in proc.stdout:
                 print(line)
                 allOut = allOut + line
+                sys.stdout.flush()
                 with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
                     file.write(line)
 
@@ -35,6 +37,7 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
             for line in proc.stderr:
                 print("Error: " + line)
                 error_output += line
+                sys.stdout.flush()
                 with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
                     file.write(line)
 
@@ -52,27 +55,28 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
         cmd = ['conda','run' , '--no-capture-output','--name','dlc-cuda','python',dlc_launcher,userID,expID]
         # Run the command
         #with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
-        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1) as proc:
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
             # Read the output line by line and process it
             for line in proc.stdout:
                 print(line)
                 allOut = allOut + line
+                sys.stdout.flush()
                 with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
                     file.write(line)
 
-            # Read the error output line by line and process it
-            error_output = ""
-            for line in proc.stderr:
-                print("Error: " + line)
-                error_output += line
-                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
-                    file.write(line)
+            # # Read the error output line by line and process it
+            # error_output = ""
+            # for line in proc.stderr:
+            #     print("Error: " + line)
+            #     error_output += line
+            #     with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+            #         file.write(line)
 
             proc.wait()
             if proc.returncode != 0:
-                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
-                    file.write(allOut)
-                raise Exception("An error occurred during the execution of suite2p")
+                # with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
+                #     file.write(allOut)
+                raise Exception("An error occurred during the execution of dlc")
 
         # cmd = 'conda run --no-capture-output --name dlc-cuda python '+ dlc_launcher +' "' + userID + '" "' + expID + '"'
         # subprocess.run(cmd, shell=True)
@@ -90,6 +94,7 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
             for line in proc.stdout:
                 print(line)
                 allOut = allOut + line
+                sys.stdout.flush()
                 with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
                     file.write(line)
 
@@ -98,6 +103,7 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
             for line in proc.stderr:
                 print("Error: " + line)
                 error_output += line
+                sys.stdout.flush()
                 with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
                     file.write(line)
 
@@ -114,16 +120,14 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
 # for debugging:
 def main():
     jobID = 'debug.pickle'
-    expID = '2023-02-24_01_ESMT116' # 7 tif
-    expID = '2023-03-01_01_ESMT107' # 1 tif
-
+    expID = '2023-03-31_05_ESMT125'
     userID = 'adamranson'
     suite2p_config = 'ch_1_depth_1.npy'
-    runs2p          = True
+    runs2p          = False
     rundlc          = True
     runfitpupil     = True
-    #run_preprocess_step1(jobID,userID, expID,suite2p_config, runs2p, rundlc, runfitpupil)
-    run_preprocess_step1("debug","pmateosaparicio","2022-02-08_03_ESPM040","ch_1_depth_1.npy",False,False,True)
+    run_preprocess_step1(jobID,userID, expID,suite2p_config, runs2p, rundlc, runfitpupil)
+    #run_preprocess_step1("debug","adamranson","2023-03-31_05_ESMT125","ch_1_depth_1.npy",False,True,True)
     # cmd = ['python','/home/adamranson/code/preprocess_py/test_print.py']
     #pmateosaparicio_2022-02-08_03_ESPM040
 

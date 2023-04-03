@@ -11,8 +11,6 @@ def crop_vids(userID, expID):
     animalID, remote_repository_root, \
     processed_root, exp_dir_processed, \
         exp_dir_raw = organise_paths.find_paths(userID, expID)
-    # make output directory if it doesn't already exist
-    os.makedirs(exp_dir_processed, exist_ok = True)
     # Open the video
     eye_video_to_crop = os.path.join(exp_dir_raw,(expID + '_eye1.mp4'))
     cap = cv2.VideoCapture(eye_video_to_crop)
@@ -127,6 +125,8 @@ def dlc_launcher_run(userID, expID):
     animalID, remote_repository_root, \
         processed_root, exp_dir_processed, \
             exp_dir_raw = organise_paths.find_paths(userID, expID)
+    # make output directory if it doesn't already exist
+    os.makedirs(exp_dir_processed, exist_ok = True)
     # removing all existing dlc data
     for filename in os.listdir(exp_dir_processed):
         if 'eye1_left' in filename:
@@ -167,8 +167,8 @@ def main():
         expID = sys.argv[2]
     except:
         # debug mode
-        expID = '2022-02-08_03_ESPM040'
-        userID = 'pmateosaparicio'
+        expID = '2023-03-31_05_ESMT125'
+        userID = 'adamranson'
     start_time = time.time()
     dlc_launcher_run(userID, expID)
     print('Time to run: ' + str(time.time() - start_time) + ' secs')
