@@ -1,12 +1,11 @@
 # these scripts are to run commands that need to be run in specific conda environments
 # they should be run from the command line
+from conceivable import thread_limit
 import sys
 import suite2p
 import organise_paths
 import numpy as np
 import os
-from conceivable import thread_limit
-
 
 def s2p_launcher_run(userID,expID,tif_path,config_path):
     animalID, remote_repository_root, \
