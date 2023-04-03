@@ -24,12 +24,16 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
             for line in proc.stdout:
                 print(line)
                 allOut = allOut + line
+                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+                    file.write(line)
 
             # Read the error output line by line and process it
             error_output = ""
             for line in proc.stderr:
                 print("Error: " + line)
                 error_output += line
+                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+                    file.write(line)
 
             proc.wait()
             if proc.returncode != 0:
@@ -50,12 +54,16 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
             for line in proc.stdout:
                 print(line)
                 allOut = allOut + line
+                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+                    file.write(line)
 
             # Read the error output line by line and process it
             error_output = ""
             for line in proc.stderr:
                 print("Error: " + line)
                 error_output += line
+                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+                    file.write(line)
 
             proc.wait()
             if proc.returncode != 0:
@@ -79,12 +87,16 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
             for line in proc.stdout:
                 print(line)
                 allOut = allOut + line
+                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+                    file.write(line)
 
             # Read the error output line by line and process it
             error_output = ""
             for line in proc.stderr:
                 print("Error: " + line)
                 error_output += line
+                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+                    file.write(line)
 
             proc.wait()
             if proc.returncode != 0:
@@ -92,9 +104,9 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
                     file.write(allOut)
                 raise Exception("An error occurred during the execution of suite2p")
 
-    # save command line output
-    with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
-        file.write(allOut)
+    # # save command line output
+    # with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+    #     file.write(allOut)
 
 # for debugging:
 def main():

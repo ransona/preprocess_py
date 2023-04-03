@@ -66,7 +66,7 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
 
         for iTrial in range(all_trials.shape[0]):
             trial_onset_time = all_trials.loc[iTrial,'time']
-            trial_end_time = all_trials.loc[iTrial,'time'] + all_trials.loc[iTrial,'duration']+post_time
+            trial_end_time = all_trials.loc[iTrial,'time'] + all_trials.loc[iTrial,'duration']
             # collect samples from ephys
             first_sample = np.argmax(ca_data['t'] >= (trial_onset_time-pre_time))
             last_sample = np.argmax(ca_data['t'] >= (trial_end_time+post_time))
@@ -191,13 +191,11 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
     print('done')
 # for debugging:
 def main():
-    x=0
-    # expID
-    # expID = '2023-02-28_11_ESMT116'
-    # expID = '2023-03-01_01_ESMT107'
-    # # user ID to use to place processed data
-    # userID = 'adamranson'
-    # run_preprocess_cut(userID, expID,2,2)
+    userID = 'melinatimplalexi'
+    expID = '2023-02-28_11_ESMT116'
+    pre_secs = 5
+    post_secs = 5
+    run_preprocess_cut(userID, expID, pre_secs, post_secs)
 
 if __name__ == "__main__":
     main()
