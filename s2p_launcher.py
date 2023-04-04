@@ -20,6 +20,7 @@ def s2p_launcher_run(userID,expID,tif_path,config_path):
     # load the saved config
     ops = np.load(config_path,allow_pickle=True)
     ops = ops.item()
+    ops['save_mat'] = False
     db = {
         'data_path': [tif_path],
         'save_path0': exp_dir_processed,
@@ -39,7 +40,7 @@ def main():
         config_path = sys.argv[4]
     except:
         # debug mode
-        expID = '2023-02-24_01_ESMT116'
+        expID = '2023-04-04_04_ESMT125'
         userID = 'adamranson'
         animalID, remote_repository_root, \
             processed_root, exp_dir_processed, \

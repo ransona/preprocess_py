@@ -167,7 +167,7 @@ def main():
         expID = sys.argv[2]
     except:
         # debug mode
-        expID = '2023-03-31_05_ESMT125'
+        expID = '2023-04-04_04_ESMT125'
         userID = 'adamranson'
     start_time = time.time()
     dlc_launcher_run(userID, expID)

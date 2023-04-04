@@ -84,7 +84,7 @@ def split_combined_suite2p():
                     exp_dir_raw2 = organise_paths.find_paths(userID, expID)
             try:
                 animalID, remote_repository_root, processed_root, exp_dir_processed, exp_dir_raw = organise_paths.find_paths(userID, expID)
-                path = exp_dir_processed
+                path = os.path.join(exp_dir_processed,'suite2p')
                 group_id = grp.getgrnam('users').gr_gid
                 mode = 0o770
                 for root, dirs, files in os.walk(path):
