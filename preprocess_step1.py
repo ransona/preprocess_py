@@ -18,7 +18,8 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
         config_path = os.path.join('/home','adamranson','data/configs/s2p_configs',suite2p_config)
         s2p_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/s2p_launcher.py')
         #cmd = 'conda run --no-capture-output --name suite2p python '+ s2p_launcher +' "' + userID + '" "' + expID + '" "' + tif_path + '" "' + config_path + '"'
-        cmd = ['conda','run' , '--no-capture-output','--name','suite2p','python',s2p_launcher,userID,expID,tif_path,config_path]
+        # cmd = ['conda','run' , '--no-capture-output','--name','suite2p','python',s2p_launcher,userID,expID,tif_path,config_path]
+        cmd = ['/opt/scripts/conda-run.sh','suite2p','python',s2p_launcher,userID,expID,tif_path,config_path]
         print('Starting S2P launcher...')
         #subprocess.run(cmd, shell=True)
         # with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
@@ -52,7 +53,8 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
         # run DLC
         dlc_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/dlc_launcher.py')
         print('Running DLC launcher...')
-        cmd = ['conda','run' , '--no-capture-output','--name','dlc-cuda','python',dlc_launcher,userID,expID]
+        # cmd = ['conda','run' , '--no-capture-output','--name','dlc-cuda','python',dlc_launcher,userID,expID]
+        cmd = ['/opt/scripts/conda-run.sh','dlc-cuda','python',dlc_launcher,userID,expID]
         # Run the command
         #with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
         with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
@@ -120,12 +122,12 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
 # for debugging:
 def main():
     jobID = 'debug.pickle'
-    expID = '2023-03-31_05_ESMT125'
+    expID = '2023-02-24_01_ESMT116'
     userID = 'adamranson'
     suite2p_config = 'ch_1_depth_1.npy'
     runs2p          = False
     rundlc          = True
-    runfitpupil     = True
+    runfitpupil     = False
     run_preprocess_step1(jobID,userID, expID,suite2p_config, runs2p, rundlc, runfitpupil)
     #run_preprocess_step1("debug","adamranson","2023-03-31_05_ESMT125","ch_1_depth_1.npy",False,True,True)
     # cmd = ['python','/home/adamranson/code/preprocess_py/test_print.py']

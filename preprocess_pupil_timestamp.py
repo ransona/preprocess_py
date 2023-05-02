@@ -10,6 +10,7 @@ import os
 import pandas as pd
 import pickle
 import organise_paths
+import apply_pupil_calib
 
 def preprocess_pupil_timestamp_run(userID, expID):
     print('Starting preprocess_pupil_timestamp_run...')
@@ -49,17 +50,25 @@ def preprocess_pupil_timestamp_run(userID, expID):
             pickle_out = open(os.path.join(exp_dir_processed_recordings,'dlcEyeRight_resampled.pickle'),"wb")
             pickle.dump(eyeDat2, pickle_out)
             pickle_out.close()           
-        print()
-        print('Done without errors')
+        
+    # check if there is a pix->degrees calibration file for the animal and if there is use it to convert
+    # pupil xy position etc to degrees
+    if os.path.exists(os.path.join(processed_root,animalID,'meta','eye_pix_angle_map.pickle')):
+        # calibration exists so apply it
+        print('Eye position calibration file found... applying calibration')
+        apply_pupil_calib.apply_pupil_calib(userID,[expID]) 
+    else:
+        print('Warning: no eye position calibration file found')
+    print()
+    print('Done without errors')
 
 # for debugging:
 def main():
     x=0
     # # expID
-    # expID = '2023-02-28_11_ESMT116'
-    # # user ID to use to place processed data
-    # userID = 'adamranson'
-    # preprocess_pupil_run(userID, expID)
+    userID = 'adamranson'
+    expID = '2023-04-18_07_ESMT124'
+    preprocess_pupil_timestamp_run(userID, expID)
 
 if __name__ == "__main__":
     main()

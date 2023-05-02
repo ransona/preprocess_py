@@ -140,6 +140,17 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
             eye_cut_right['velocity'] = eyeDat_right['velocity'][np.newaxis,first_sample:last_sample]
             eye_cut_right['qc'] = eyeDat_right['qc'][np.newaxis,first_sample:last_sample]
             eye_cut_right['frame'] = eyeDat_right['frame'][np.newaxis,first_sample:last_sample]
+            # if the calibrated pupil data is in eyeDat then cut this too
+            if eyeDat_left.get('x_d') is not None:
+                # we assume that if this field is here then all calibrated fields will be there
+                eye_cut_left['x_d'] = eyeDat_left['x_d'][np.newaxis,first_sample:last_sample]
+                eye_cut_left['y_d'] = eyeDat_left['y_d'][np.newaxis,first_sample:last_sample]
+                eye_cut_left['radius_d'] = eyeDat_left['radius_d'][np.newaxis,first_sample:last_sample]
+                eye_cut_left['velocity_d'] = eyeDat_left['velocity_d'][np.newaxis,first_sample:last_sample]
+                eye_cut_right['x_d'] = eyeDat_right['x_d'][np.newaxis,first_sample:last_sample]
+                eye_cut_right['y_d'] = eyeDat_right['y_d'][np.newaxis,first_sample:last_sample]
+                eye_cut_right['radius_d'] = eyeDat_right['radius_d'][np.newaxis,first_sample:last_sample]
+                eye_cut_right['velocity_d'] = eyeDat_right['velocity_d'][np.newaxis,first_sample:last_sample]          
         else:
             eye_cut_left['x'] = sparse_cat_np(eye_cut_left['x'],eyeDat_left['x'][np.newaxis,first_sample:last_sample])
             eye_cut_left['y'] = sparse_cat_np(eye_cut_left['y'],eyeDat_left['y'][np.newaxis,first_sample:last_sample])
@@ -153,7 +164,17 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
             eye_cut_right['velocity'] = sparse_cat_np(eye_cut_right['velocity'],eyeDat_right['velocity'][np.newaxis,first_sample:last_sample])
             eye_cut_right['qc'] = sparse_cat_np(eye_cut_right['qc'],eyeDat_right['qc'][np.newaxis,first_sample:last_sample])
             eye_cut_right['frame'] = sparse_cat_np(eye_cut_right['qc'],eyeDat_right['frame'][np.newaxis,first_sample:last_sample])
-
+            # if the calibrated pupil data is in eyeDat then cut this too
+            if eyeDat_left.get('x_d') is not None:
+                # we assume that if this field is here then all calibrated fields will be there            
+                eye_cut_left['x_d'] = sparse_cat_np(eye_cut_left['x_d'],eyeDat_left['x_d'][np.newaxis,first_sample:last_sample])
+                eye_cut_left['y_d'] = sparse_cat_np(eye_cut_left['y_d'],eyeDat_left['y_d'][np.newaxis,first_sample:last_sample])
+                eye_cut_left['radius_d'] = sparse_cat_np(eye_cut_left['radius_d'],eyeDat_left['radius_d'][np.newaxis,first_sample:last_sample])
+                eye_cut_left['velocity_d'] = sparse_cat_np(eye_cut_left['velocity_d'],eyeDat_left['velocity_d'][np.newaxis,first_sample:last_sample])
+                eye_cut_right['x_d'] = sparse_cat_np(eye_cut_right['x_d'],eyeDat_right['x_d'][np.newaxis,first_sample:last_sample])
+                eye_cut_right['y_d'] = sparse_cat_np(eye_cut_right['y_d'],eyeDat_right['y_d'][np.newaxis,first_sample:last_sample])
+                eye_cut_right['radius_d'] = sparse_cat_np(eye_cut_right['radius_d'],eyeDat_right['radius_d'][np.newaxis,first_sample:last_sample])
+                eye_cut_right['velocity_d'] = sparse_cat_np(eye_cut_right['velocity_d'],eyeDat_right['velocity_d'][np.newaxis,first_sample:last_sample])
     # make time vector
     eye_sample_rate = 1/np.round(eyeDat_left['t'][1]-eyeDat_left['t'][0],4)
     eye_cut_left['t'] = np.linspace(0,eye_cut_left['x'].shape[1]/eye_sample_rate,eye_cut_left['x'].shape[1]) - pre_time
@@ -189,10 +210,11 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
     with open(os.path.join(exp_dir_processed_cut,'wheel.pickle'), 'wb') as f: pickle.dump(wheel_cut, f)   
 
     print('done')
+
 # for debugging:
 def main():
-    userID = 'melinatimplalexi'
-    expID = '2023-02-28_11_ESMT116'
+    userID = 'adamranson'
+    expID = '2023-04-18_07_ESMT124'
     pre_secs = 5
     post_secs = 5
     run_preprocess_cut(userID, expID, pre_secs, post_secs)

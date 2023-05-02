@@ -237,51 +237,6 @@ def preprocess_pupil_run(userID, expID):
                     except:
                         z = 0
 
-            if displayOn:
-                if iFrame == 0:
-                    fig = plt.figure()
-
-                if iFrame % displayInterval == 0:
-
-                    if eyeDat['qc'][iFrame] == 0:
-                        # quality control passed
-
-                        # set to read next frame
-                        v.set(cv2.CAP_PROP_POS_FRAMES, iFrame)
-                        # read the frame at the current position
-                        ret, currentFrame = v.read()
-                        currentFrame = np.squeeze(currentFrame[:, :, 1])
-                        # all plotting
-                        plt.clf()
-                        plt.imshow(currentFrame, cmap='gray')
-                        # plot all coordinates
-                        # plot eye
-                        plt.plot(xVals, yVals, 'y')
-                        # plot valid pupil points
-                        plt.scatter(pupilX[iFrame, inEye], pupilY[iFrame, inEye], c='g')
-                        # invalid
-                        plt.scatter(pupilX[iFrame, ~inEye], pupilY[iFrame, ~inEye], c='r')
-                        # draw pupil circle
-                        plt.gca().add_artist(plt.Circle((xCenter, yCenter), radius, fill=False))
-                        plt.show()
-                        fig.canvas.draw()
-                        fig.canvas.flush_events()
-                    else:
-                        # quality control NOT passed
-                        plt.figure()
-                        currentFrame = readVideoIndex(v, iFrame)
-                        currentFrame = np.squeeze(currentFrame[:, :, 1])
-                        # all plotting
-                        plt.clf()
-                        plt.imshow(currentFrame, cmap='gray')
-                        # plot all coordinates
-                        plt.scatter(pupilX[iFrame, :], pupilY[iFrame, :], c='g')
-                        # plot valid pupil points
-                        plt.scatter(pupilX[iFrame, :], pupilY[iFrame, :], c='g')
-                        # eye points
-                        plt.scatter(eyeX[iFrame, :], eyeY[iFrame, :])
-                        plt.show()
-
         # convert lists to arrays
         eyeDat['x'] = np.array(eyeDat['x'])
         eyeDat['y'] = np.array(eyeDat['y']) 
