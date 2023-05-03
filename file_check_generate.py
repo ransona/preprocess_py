@@ -19,7 +19,7 @@ def hash_file(filepath):
             sha256.update(data)
     return sha256.hexdigest()
 
-def generate_file_data(local_repos_dir, output_stem):
+def generate_file_data(local_repos_dir, output_stem,recursive_search):
     # local_repos_dir is the path to local repos of experiments
     output_file = 'file_check_' + output_stem + '.txt'
 
@@ -29,7 +29,9 @@ def generate_file_data(local_repos_dir, output_stem):
     for entry in local_repos_dir.iterdir():
         if entry.is_dir():
             animal_list.append(entry)
-
+            
+    if recursive_search:
+        print('Running in recursive mode')
     # iterate through animal dirs, listing experiments and hashing each
     for iAnimal in range(len(animal_list)):
         animal_dir = Path(animal_list[iAnimal])
@@ -52,15 +54,22 @@ def generate_file_data(local_repos_dir, output_stem):
                 root_path = Path(exp_path)
                 file_data = []
                 total_size = 0
-
-                for filepath in root_path.glob('**/*'):
-                    if filepath.is_file():
-                        rel_path = filepath.relative_to(root_path).as_posix()
-                        size = filepath.stat().st_size
-                        file_hash = hash_file(filepath)
-                        file_data.append((rel_path, size, file_hash))
-                        total_size += size
-
+                if recursive_search == True:
+                    for filepath in root_path.glob('**/*'):
+                        if filepath.is_file():
+                            rel_path = filepath.relative_to(root_path).as_posix()
+                            size = filepath.stat().st_size
+                            file_hash = hash_file(filepath)
+                            file_data.append((rel_path, size, file_hash))
+                            total_size += size
+                else:
+                    for filepath in root_path.iterdir():
+                        if filepath.is_file():
+                            rel_path = filepath.relative_to(root_path).as_posix()
+                            size = filepath.stat().st_size
+                            file_hash = hash_file(filepath)
+                            file_data.append((rel_path, size, file_hash))
+                            total_size += size
                 with open(output_file_path, 'w') as f:
                     f.write(f"Total size: {total_size}\n")
                     for rel_path, size, file_hash in file_data:
@@ -75,12 +84,14 @@ def main():
         # has been run from sys command line 
         root_path = sys.argv[1]
         output_file = sys.argv[2]
+        recursive_search = bool(sys.argv[3])
     except:
         # debug        
         root_path = '/home/adamranson/temp/repos'
         output_file = 'scanimage'
+        recursive_search = True
         
-    generate_file_data(root_path,output_file)
+    generate_file_data(root_path,output_file,recursive_search)
 
 if __name__ == "__main__":
     main()
