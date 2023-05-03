@@ -5,6 +5,7 @@
 import hashlib
 from pathlib import Path
 import os
+import sys
 
 def hash_file(filepath):
     BUF_SIZE = 65536
@@ -70,8 +71,15 @@ def generate_file_data(local_repos_dir, output_stem):
 
 # for debugging:
 def main():
-    root_path = '/home/adamranson/temp/repos'
-    output_file = 'scanimage'
+    try:
+        # has been run from sys command line 
+        root_path = sys.argv[1]
+        output_file = sys.argv[2]
+    except:
+        # debug        
+        root_path = '/home/adamranson/temp/repos'
+        output_file = 'scanimage'
+        
     generate_file_data(root_path,output_file)
 
 if __name__ == "__main__":
