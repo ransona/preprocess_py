@@ -67,8 +67,8 @@ def verify_file_data(file_data_stem, new_root_path):
 
 # for debugging:
 def main():
-    file_data_stem = 'scanimage'
-    new_root_path = '/home/adamranson/temp/repos/A1/test_sync1' 
+    file_data_stem = 'test'
+    new_root_path = '/home/adamranson/temp/test_sync0'
     verify_file_data(file_data_stem,new_root_path)
 
 if __name__ == "__main__":
