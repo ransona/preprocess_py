@@ -68,7 +68,8 @@ def main():
         # has been run from sys command line 
         root_path = sys.argv[1]
         output_file = sys.argv[2]
-        recursive_search = bool(sys.argv[3])
+        recursive_search = sys.argv[3]
+        recursive_search = True if recursive_search.lower() == "true" else False
     except:
         # debug
         print('Running in debug mode')        
