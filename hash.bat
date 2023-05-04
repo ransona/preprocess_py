@@ -1,0 +1,1 @@
+C:\Users\ScanImage\anaconda3\python.exe C:\Code\repos\preprocess_py\file_check_generate.py "V:\Local_Repository" "scanimage" "True"
