@@ -32,7 +32,7 @@ def preprocess_cam_run(userID, expID):
     framePulseTimes = tl_time[np.where(np.diff(camPulseTrace) == 1)] # each pos going edge = 200 frames (except first)
 
     # Do a quality check on the frame pulse times
-    if np.min(np.diff(framePulseTimes)) < 16:
+    if np.min(np.diff(framePulseTimes)) < 14:
         plt.figure()
         if len(tl_time) > 100000:
             plt.plot(tl_time[:100000], tl_daqData[:100000, camIdx])
