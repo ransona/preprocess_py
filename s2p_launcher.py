@@ -8,6 +8,7 @@ import numpy as np
 import os
 
 def s2p_launcher_run(userID,expID,tif_path,config_path):
+    # determine if several experiments are being run together or not:
     animalID, remote_repository_root, \
         processed_root, exp_dir_processed, \
             exp_dir_raw = organise_paths.find_paths(userID, expID)
@@ -16,13 +17,15 @@ def s2p_launcher_run(userID,expID,tif_path,config_path):
     # for foldername in os.listdir(exp_dir_processed):
     #     if search_str in foldername and os.path.isdir(os.path.join(exp_dir_processed, foldername)):
     #         os.rmdir(os.path.join(exp_dir_processed, foldername))
+    # split tif path: if there is only one path it still outputs this as a list
+    allTifPaths = tif_path.split(',')
             
     # load the saved config
     ops = np.load(config_path,allow_pickle=True)
     ops = ops.item()
     ops['save_mat'] = False
     db = {
-        'data_path': [tif_path],
+        'data_path': allTifPaths,
         'save_path0': exp_dir_processed,
         'save_disk': exp_dir_processed, # where bin is moved after processing
         'fast_disk': os.path.join('/data/fast',userID, animalID, expID),
@@ -40,12 +43,12 @@ def main():
         config_path = sys.argv[4]
     except:
         # debug mode
-        expID = '2023-04-04_04_ESMT125'
+        expID = '2023-02-28_13_ESMT116'
         userID = 'adamranson'
         animalID, remote_repository_root, \
             processed_root, exp_dir_processed, \
                 exp_dir_raw = organise_paths.find_paths(userID, expID)
-        tif_path = exp_dir_raw
+        tif_path = '/data/Remote_Repository/ESMT116/2023-02-28_13_ESMT116,/data/Remote_Repository/ESMT116/2023-02-28_14_ESMT116'
         config_path = os.path.join('/home',userID,'data/configs/s2p_configs','ch_1_depth_1.npy')
 
     s2p_launcher_run(userID,expID,tif_path,config_path)

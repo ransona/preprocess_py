@@ -5,9 +5,24 @@ import sys
 import preprocess_pupil
 
 def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, runfitpupil): 
-    animalID, remote_repository_root, \
-        processed_root, exp_dir_processed, \
-            exp_dir_raw = organise_paths.find_paths(userID, expID)
+    if not ',' in expID:
+        # then there's only one experiment ID
+        animalID, remote_repository_root, \
+            processed_root, exp_dir_processed, \
+                exp_dir_raw = organise_paths.find_paths(userID, expID)
+    else:
+        # multiple expIDs being processing in suite2p together
+        # make exp_dir_raw contain all data paths
+        # make expID the first one
+        allExpIDs = expID.split(',')
+        # generate exp path for each expID
+        tif_path = []
+        for expID_each in allExpIDs:
+            _, _, _, exp_dir_processed, exp_dir_raw = organise_paths.find_paths(userID, expID_each)
+            tif_path.append(exp_dir_raw)
+        exp_dir_raw = ','.join(tif_path)
+
+
     # make the output directory if it doesn't already exist
     os.makedirs(exp_dir_processed, exist_ok = True)
 
@@ -122,11 +137,11 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
 # for debugging:
 def main():
     jobID = 'debug.pickle'
-    expID = '2023-02-24_01_ESMT116'
+    expID = '2023-02-28_13_ESMT116,2023-02-28_14_ESMT116'
     userID = 'adamranson'
     suite2p_config = 'ch_1_depth_1.npy'
-    runs2p          = False
-    rundlc          = True
+    runs2p          = True
+    rundlc          = False
     runfitpupil     = False
     run_preprocess_step1(jobID,userID, expID,suite2p_config, runs2p, rundlc, runfitpupil)
     #run_preprocess_step1("debug","adamranson","2023-03-31_05_ESMT125","ch_1_depth_1.npy",False,True,True)
