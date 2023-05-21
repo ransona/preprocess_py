@@ -21,6 +21,7 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
             _, _, _, exp_dir_processed, exp_dir_raw = organise_paths.find_paths(userID, expID_each)
             tif_path.append(exp_dir_raw)
         exp_dir_raw = ','.join(tif_path)
+        _, _, _, exp_dir_processed, _ = organise_paths.find_paths(userID, allExpIDs[0])
 
 
     # make the output directory if it doesn't already exist
