@@ -28,8 +28,8 @@ def s2p_launcher_run(userID,expID,tif_path,config_path):
     db = {
         'data_path': allTifPaths,
         'save_path0': exp_dir_processed,
-        'save_disk': exp_dir_processed, # where bin is moved after processing
-        'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
+        #'save_disk': exp_dir_processed, # where bin is moved after processing
+        #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
         }
     suite2p.run_s2p(ops=ops, db=db)  
 
