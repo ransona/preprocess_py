@@ -31,7 +31,7 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
     if runs2p:
         # run suite2p
         tif_path = exp_dir_raw
-        config_path = os.path.join('/home','adamranson','data/configs/s2p_configs',suite2p_config)
+        config_path = os.path.join('/data/common/configs/s2p_configs',userID,suite2p_config)
         s2p_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/s2p_launcher.py')
         #cmd = 'conda run --no-capture-output --name suite2p python '+ s2p_launcher +' "' + userID + '" "' + expID + '" "' + tif_path + '" "' + config_path + '"'
         # cmd = ['conda','run' , '--no-capture-output','--name','suite2p','python',s2p_launcher,userID,expID,tif_path,config_path]
