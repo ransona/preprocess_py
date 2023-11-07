@@ -25,13 +25,35 @@ def s2p_launcher_run(userID,expID,tif_path,config_path):
     ops = np.load(config_path,allow_pickle=True)
     ops = ops.item()
     ops['save_mat'] = False
-    db = {
-        'data_path': allTifPaths,
-        'save_path0': exp_dir_processed,
-        #'save_disk': exp_dir_processed, # where bin is moved after processing
-        #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
-        }
-    suite2p.run_s2p(ops=ops, db=db)  
+    if ops['functional_chan']==3:
+        # then we are running on 2 functional channels (this is a hack to encode this info)
+        db = {
+            'data_path': allTifPaths,
+            'save_path0': exp_dir_processed,
+            #'save_disk': exp_dir_processed, # where bin is moved after processing
+            #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
+            }
+        suite2p.run_s2p(ops=ops, db=db)  
+        # run red ch
+        # can be improved to avoid registering twice and making two copies of data!
+        db = {
+            'data_path': allTifPaths,
+            'save_path0': os.path.join(exp_dir_processed,'ch2')
+            #'save_disk': exp_dir_processed, # where bin is moved after processing
+            #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
+            }
+        suite2p.run_s2p(ops=ops, db=db)    
+    else:
+        # then we are running on 1 functional channel (this is a hack to encode this info)
+        # run green ch
+        db = {
+            'data_path': allTifPaths,
+            'save_path0': exp_dir_processed,
+            #'save_disk': exp_dir_processed, # where bin is moved after processing
+            #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
+            }
+        suite2p.run_s2p(ops=ops, db=db)  
+            
 
 # for debugging:
 def main():
