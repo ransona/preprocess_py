@@ -33,6 +33,7 @@ def s2p_launcher_run(userID,expID,tif_path,config_path):
             #'save_disk': exp_dir_processed, # where bin is moved after processing
             #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
             }
+        ops['functional_chan']=1
         suite2p.run_s2p(ops=ops, db=db)  
         # run red ch
         # can be improved to avoid registering twice and making two copies of data!
@@ -42,6 +43,7 @@ def s2p_launcher_run(userID,expID,tif_path,config_path):
             #'save_disk': exp_dir_processed, # where bin is moved after processing
             #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
             }
+        ops['functional_chan']=2
         suite2p.run_s2p(ops=ops, db=db)    
     else:
         # then we are running on 1 functional channel (this is a hack to encode this info)
