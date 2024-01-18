@@ -61,7 +61,7 @@ def main(target_user,msg,group=''):
                     room.send_text(msg)
                     msg_sent = True
         
-        if msg_sent == False
+        if msg_sent == False:
             print("WARNING: YOU DO NOT HAVE AN ELEMENT USERNAME PAIRED TO YOUR UBUNTU USERNAME - PLEASE REQUEST THIS FOR ELEMENT NOTIFICATIONS")
             
         # If no private room exists, create one and invite the target user
