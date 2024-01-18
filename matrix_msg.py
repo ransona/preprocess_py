@@ -5,7 +5,12 @@ import json
 # Replace these values with your own
 MATRIX_SERVER = "https://matrix.org"
 BOT_USERNAME = "dream_bot_1"
-BOT_PASSWORD = "dream_bot_1password"
+# Open the file and read its contents
+file_path = '/data/common/configs/bot/dream_bot_psw'
+with open(file_path, 'r') as file:
+    file_contents = file.read()
+# BOT_PASSWORD = "dream_bot_1password"
+BOT_PASSWORD = file_contents
 TARGET_USER_ID = "@ranson.ad:matrix.org"
 MESSAGE = "Hello from the bot!"
 
@@ -32,7 +37,7 @@ def main(target_user,msg,group=''):
 
         # Get a list of rooms the bot is in
         rooms = client.get_rooms()
-
+        msg_sent = False
         if group == '':
             # Check if there's already a private room with the target user
             target_room = None
@@ -46,6 +51,7 @@ def main(target_user,msg,group=''):
                     target_room = room    
                     # Send the message
                     target_room.send_text(msg)
+                    msg_sent = True
                     break
         else:
             # try to find the group requested !byLPEQmNPNnuSYFYuP:matrix.org
@@ -53,6 +59,10 @@ def main(target_user,msg,group=''):
                 display_name = room.display_name
                 if display_name == group:
                     room.send_text(msg)
+                    msg_sent = True
+        
+        if msg_sent == False
+            print("WARNING: YOU DO NOT HAVE AN ELEMENT USERNAME PAIRED TO YOUR UBUNTU USERNAME - PLEASE REQUEST THIS FOR ELEMENT NOTIFICATIONS")
             
         # If no private room exists, create one and invite the target user
         # if not target_room:
@@ -71,6 +81,12 @@ def lookup_user(username):
         return '@melina_timplalexi:matrix.org'
     elif username == 'pmateosaparicio':
         return '@pmateosaparicio:matrix.org'
+    elif username == 'antoniofernandez':
+        return '@boxerito:matrix.org'
+    elif username == 'rubencorreia':
+        return '@rubencorreia:matrix.org'    
+    elif username == 'sebastianrodriguez':
+        return '@sebastian.rdz:matrix.org'
     else:
         return ''
     
