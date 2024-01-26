@@ -1,6 +1,10 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import util
-util.imshow(np.random.rand(10,10))
+import matrix_msg
+import scratch2
+import time
 
-x=0
+while True:
+    start_time = time.time()
+    matrix_msg.main('adamranson','Matrix','Server queue notifications')
+    # scratch2.main('adamranson','T1')
+    exe_time = time.time() - start_time
+    print(f"{exe_time} secs")
