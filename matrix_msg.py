@@ -58,6 +58,10 @@ def main(target_user, msg, group=''):
     msg_sent = False
 
     if group == '':
+        # default to server queue notifications channel
+        group = 'Server queue notifications'
+
+    if group == '':
         target_room = None
         for room_id, room in rooms.items():
             members = room.get_joined_members()
