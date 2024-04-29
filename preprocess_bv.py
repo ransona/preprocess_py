@@ -99,13 +99,31 @@ def run_preprocess_bv(userID, expID):
     wheelTimestamps = mdl1.predict(Encoder.Timestamp.values.reshape(-1,1))
     # Resample wheel to linear timescale
     wheelLinearTimescale = np.arange(np.ceil(wheelTimestamps[0]), np.floor(wheelTimestamps[-1]), 0.05)
+    # Create the interpolater
     f = interpolate.interp1d(wheelTimestamps, wheelPos, kind='linear')
+    # Infer the wheel pos at each point on linear timescale and smooth this position data
     wheelPos2 = pd.Series(f(wheelLinearTimescale)).rolling(window=50, center=True).mean().fillna(method='ffill').fillna(method='bfill')
-    wheelSpeed = ((np.insert(np.diff(wheelPos2.values) * -1, 0, 0) * (62 / 1024)) * 100)
+    # Calc diff between position samples and then mutiply by circumference of the running wheel
+    wheelSpeed = ((np.insert(np.diff(wheelPos2.values) * -1, 0, 0) * (62 / 1024)) * 100) # should be multiplied by 20?
     # add filler data for period before bv starts when wheel isn't stored
     filler_t = np.arange(0,wheelLinearTimescale[0],0.05)
     filler_position = np.tile(wheelPos2[0],[filler_t.shape[0]])
     filler_speed = np.tile(wheelSpeed[0],[filler_t.shape[0]])
+    # for debugging
+    # fig, axs = plt.subplots(5,1, sharex=True)
+    # axs[0].plot(wheelTimestamps,Encoder.Position.values)
+    # axs[0].set_title('Raw')
+    # axs[1].plot(wheelTimestamps[0:-1],wheelPosDif)
+    # axs[1].set_title('WheelPosDif')
+    # axs[2].plot(wheelTimestamps,wheelPos)
+    # axs[2].set_title('WheelPos (wraparound removed)')
+    # axs[3].plot(wheelLinearTimescale,wheelPos2)
+    # axs[3].set_title('wheelPos2')
+    # axs[4].plot(wheelLinearTimescale,wheelSpeed)
+    # axs[4].set_title('wheelSpeed')  
+    # plt.tight_layout()
+    # plt.show() 
+
     # Save data
     wheel = {}
     wheel['position'] = np.concatenate([filler_position,np.array(wheelPos2)],axis = 0)
@@ -119,3 +137,12 @@ def run_preprocess_bv(userID, expID):
     all_trials.insert(0,'time',trialOnsetTimesTL)
     all_trials.to_csv(os.path.join(exp_dir_processed, expID + '_all_trials.csv'), index=False)
     print('Done without errors')
+
+    # for debugging:
+def main():
+    userID = 'adamranson'
+    expID = '2023-04-18_07_ESMT124'
+    run_preprocess_bv(userID, expID)
+
+if __name__ == "__main__":
+    main()

@@ -37,48 +37,51 @@ def login_and_save_token():
     return client.api.token
 
 def main(target_user, msg, group=''):
-    token = load_token()
-    if not token:
-        token = login_and_save_token()
-        
     try:
-        client = MatrixClient(MATRIX_SERVER, token=token)
-        api = CustomMatrixHttpApi(MATRIX_SERVER, token=token)
-    except:
-        token = login_and_save_token()
+        token = load_token()
+        if not token:
+            token = login_and_save_token()
+            
         try:
             client = MatrixClient(MATRIX_SERVER, token=token)
             api = CustomMatrixHttpApi(MATRIX_SERVER, token=token)
         except:
-            print('Error: could not login to matrix')          
-        
+            token = login_and_save_token()
+            try:
+                client = MatrixClient(MATRIX_SERVER, token=token)
+                api = CustomMatrixHttpApi(MATRIX_SERVER, token=token)
+            except:
+                print('Error: could not login to matrix')          
+            
 
-    target_user = lookup_user(target_user)
-    rooms = client.get_rooms()
-    msg_sent = False
+        target_user = lookup_user(target_user)
+        rooms = client.get_rooms()
+        msg_sent = False
 
-    if group == '':
-        # default to server queue notifications channel
-        group = 'Server queue notifications'
+        if group == '':
+            # default to server queue notifications channel
+            group = 'Server queue notifications'
 
-    if group == '':
-        target_room = None
-        for room_id, room in rooms.items():
-            members = room.get_joined_members()
-            all_members = [member.user_id for member in members]
-            if target_user in all_members and len(members) == 2:
-                target_room = room
-                target_room.send_text(msg)
-                msg_sent = True
-                break
-    else:
-        for room_id, room in rooms.items():
-            if room.display_name == group:
-                room.send_text(msg)
-                msg_sent = True
+        if group == '':
+            target_room = None
+            for room_id, room in rooms.items():
+                members = room.get_joined_members()
+                all_members = [member.user_id for member in members]
+                if target_user in all_members and len(members) == 2:
+                    target_room = room
+                    target_room.send_text(msg)
+                    msg_sent = True
+                    break
+        else:
+            for room_id, room in rooms.items():
+                if room.display_name == group:
+                    room.send_text(msg)
+                    msg_sent = True
 
-    if not msg_sent:
-        print("WARNING: YOU DO NOT HAVE AN ELEMENT USERNAME PAIRED TO YOUR UBUNTU USERNAME - PLEASE REQUEST THIS FOR ELEMENT NOTIFICATIONS")
+        if not msg_sent:
+            print("WARNING: YOU DO NOT HAVE AN ELEMENT USERNAME PAIRED TO YOUR UBUNTU USERNAME - PLEASE REQUEST THIS FOR ELEMENT NOTIFICATIONS")
+    except:
+        print('####### UNHANDLED ELEMENT ERROR ##############')
 
 def lookup_user(username):
     if username == 'adamranson':

@@ -115,73 +115,77 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
     with open(os.path.join(exp_dir_processed_cut,'ephys_cut.pickle'), 'wb') as f: pickle.dump(ephys_cut, f)
 
     ### Cut eye data ###
-    # load dlc data
-    eyeDat_left = pickle.load(open(os.path.join(exp_dir_processed_recordings,'dlcEyeLeft_resampled.pickle'), "rb"))
-    eyeDat_right = pickle.load(open(os.path.join(exp_dir_processed_recordings,'dlcEyeRight_resampled.pickle'), "rb"))
-    # loop through all trials collecting the dlc traces
-    eye_cut_left = {}
-    eye_cut_right = {}
-    for iTrial in range(all_trials.shape[0]):
-        trial_onset_time = all_trials.loc[iTrial,'time']
-        trial_end_time = trial_onset_time + all_trials.loc[iTrial,'duration']
-        # collect samples from dlc
-        first_sample = np.argmax(eyeDat_left['t'] >= (trial_onset_time-pre_time))
-        last_sample = np.argmax(eyeDat_left['t'] >= (trial_end_time+post_time))
-        if iTrial == 0:
-            eye_cut_left['x'] = eyeDat_left['x'][np.newaxis,first_sample:last_sample]
-            eye_cut_left['y'] = eyeDat_left['y'][np.newaxis,first_sample:last_sample]
-            eye_cut_left['radius'] = eyeDat_left['radius'][np.newaxis,first_sample:last_sample]
-            eye_cut_left['velocity'] = eyeDat_left['velocity'][np.newaxis,first_sample:last_sample]
-            eye_cut_left['qc'] = eyeDat_left['qc'][np.newaxis,first_sample:last_sample]
-            eye_cut_left['frame'] = eyeDat_left['frame'][np.newaxis,first_sample:last_sample]
-            eye_cut_right['x'] = eyeDat_right['x'][np.newaxis,first_sample:last_sample]
-            eye_cut_right['y'] = eyeDat_right['y'][np.newaxis,first_sample:last_sample]
-            eye_cut_right['radius'] = eyeDat_right['radius'][np.newaxis,first_sample:last_sample]
-            eye_cut_right['velocity'] = eyeDat_right['velocity'][np.newaxis,first_sample:last_sample]
-            eye_cut_right['qc'] = eyeDat_right['qc'][np.newaxis,first_sample:last_sample]
-            eye_cut_right['frame'] = eyeDat_right['frame'][np.newaxis,first_sample:last_sample]
-            # if the calibrated pupil data is in eyeDat then cut this too
-            if eyeDat_left.get('x_d') is not None:
-                # we assume that if this field is here then all calibrated fields will be there
-                eye_cut_left['x_d'] = eyeDat_left['x_d'][np.newaxis,first_sample:last_sample]
-                eye_cut_left['y_d'] = eyeDat_left['y_d'][np.newaxis,first_sample:last_sample]
-                eye_cut_left['radius_d'] = eyeDat_left['radius_d'][np.newaxis,first_sample:last_sample]
-                eye_cut_left['velocity_d'] = eyeDat_left['velocity_d'][np.newaxis,first_sample:last_sample]
-                eye_cut_right['x_d'] = eyeDat_right['x_d'][np.newaxis,first_sample:last_sample]
-                eye_cut_right['y_d'] = eyeDat_right['y_d'][np.newaxis,first_sample:last_sample]
-                eye_cut_right['radius_d'] = eyeDat_right['radius_d'][np.newaxis,first_sample:last_sample]
-                eye_cut_right['velocity_d'] = eyeDat_right['velocity_d'][np.newaxis,first_sample:last_sample]          
-        else:
-            eye_cut_left['x'] = sparse_cat_np(eye_cut_left['x'],eyeDat_left['x'][np.newaxis,first_sample:last_sample])
-            eye_cut_left['y'] = sparse_cat_np(eye_cut_left['y'],eyeDat_left['y'][np.newaxis,first_sample:last_sample])
-            eye_cut_left['radius'] = sparse_cat_np(eye_cut_left['radius'],eyeDat_left['radius'][np.newaxis,first_sample:last_sample])
-            eye_cut_left['velocity'] = sparse_cat_np(eye_cut_left['velocity'],eyeDat_left['velocity'][np.newaxis,first_sample:last_sample])
-            eye_cut_left['qc'] = sparse_cat_np(eye_cut_left['qc'],eyeDat_left['qc'][np.newaxis,first_sample:last_sample])
-            eye_cut_left['frame'] = sparse_cat_np(eye_cut_left['qc'],eyeDat_left['frame'][np.newaxis,first_sample:last_sample])
-            eye_cut_right['x'] = sparse_cat_np(eye_cut_right['x'],eyeDat_right['x'][np.newaxis,first_sample:last_sample])
-            eye_cut_right['y'] = sparse_cat_np(eye_cut_right['y'],eyeDat_right['y'][np.newaxis,first_sample:last_sample])
-            eye_cut_right['radius'] = sparse_cat_np(eye_cut_right['radius'],eyeDat_right['radius'][np.newaxis,first_sample:last_sample])
-            eye_cut_right['velocity'] = sparse_cat_np(eye_cut_right['velocity'],eyeDat_right['velocity'][np.newaxis,first_sample:last_sample])
-            eye_cut_right['qc'] = sparse_cat_np(eye_cut_right['qc'],eyeDat_right['qc'][np.newaxis,first_sample:last_sample])
-            eye_cut_right['frame'] = sparse_cat_np(eye_cut_right['qc'],eyeDat_right['frame'][np.newaxis,first_sample:last_sample])
-            # if the calibrated pupil data is in eyeDat then cut this too
-            if eyeDat_left.get('x_d') is not None:
-                # we assume that if this field is here then all calibrated fields will be there            
-                eye_cut_left['x_d'] = sparse_cat_np(eye_cut_left['x_d'],eyeDat_left['x_d'][np.newaxis,first_sample:last_sample])
-                eye_cut_left['y_d'] = sparse_cat_np(eye_cut_left['y_d'],eyeDat_left['y_d'][np.newaxis,first_sample:last_sample])
-                eye_cut_left['radius_d'] = sparse_cat_np(eye_cut_left['radius_d'],eyeDat_left['radius_d'][np.newaxis,first_sample:last_sample])
-                eye_cut_left['velocity_d'] = sparse_cat_np(eye_cut_left['velocity_d'],eyeDat_left['velocity_d'][np.newaxis,first_sample:last_sample])
-                eye_cut_right['x_d'] = sparse_cat_np(eye_cut_right['x_d'],eyeDat_right['x_d'][np.newaxis,first_sample:last_sample])
-                eye_cut_right['y_d'] = sparse_cat_np(eye_cut_right['y_d'],eyeDat_right['y_d'][np.newaxis,first_sample:last_sample])
-                eye_cut_right['radius_d'] = sparse_cat_np(eye_cut_right['radius_d'],eyeDat_right['radius_d'][np.newaxis,first_sample:last_sample])
-                eye_cut_right['velocity_d'] = sparse_cat_np(eye_cut_right['velocity_d'],eyeDat_right['velocity_d'][np.newaxis,first_sample:last_sample])
-    # make time vector
-    eye_sample_rate = 1/np.round(eyeDat_left['t'][1]-eyeDat_left['t'][0],4)
-    eye_cut_left['t'] = np.linspace(0,eye_cut_left['x'].shape[1]/eye_sample_rate,eye_cut_left['x'].shape[1]) - pre_time
-    eye_cut_right['t'] = np.linspace(0,eye_cut_right['x'].shape[1]/eye_sample_rate,eye_cut_right['x'].shape[1]) - pre_time
-    # save in pickle
-    with open(os.path.join(exp_dir_processed_cut,'eye_left_cut.pickle'), 'wb') as f: pickle.dump(eye_cut_left, f)        
-    with open(os.path.join(exp_dir_processed_cut,'eye_right_cut.pickle'), 'wb') as f: pickle.dump(eye_cut_right, f)  
+    # check DLC data exists
+    if os.path.exists(os.path.join(exp_dir_processed_recordings,'dlcEyeLeft_resampled.pickle')) and os.path.exists(os.path.join(exp_dir_processed_recordings,'dlcEyeRight_resampled.pickle'))
+        # load dlc data
+        eyeDat_left = pickle.load(open(os.path.join(exp_dir_processed_recordings,'dlcEyeLeft_resampled.pickle'), "rb"))
+        eyeDat_right = pickle.load(open(os.path.join(exp_dir_processed_recordings,'dlcEyeRight_resampled.pickle'), "rb"))
+        # loop through all trials collecting the dlc traces
+        eye_cut_left = {}
+        eye_cut_right = {}
+        for iTrial in range(all_trials.shape[0]):
+            trial_onset_time = all_trials.loc[iTrial,'time']
+            trial_end_time = trial_onset_time + all_trials.loc[iTrial,'duration']
+            # collect samples from dlc
+            first_sample = np.argmax(eyeDat_left['t'] >= (trial_onset_time-pre_time))
+            last_sample = np.argmax(eyeDat_left['t'] >= (trial_end_time+post_time))
+            if iTrial == 0:
+                eye_cut_left['x'] = eyeDat_left['x'][np.newaxis,first_sample:last_sample]
+                eye_cut_left['y'] = eyeDat_left['y'][np.newaxis,first_sample:last_sample]
+                eye_cut_left['radius'] = eyeDat_left['radius'][np.newaxis,first_sample:last_sample]
+                eye_cut_left['velocity'] = eyeDat_left['velocity'][np.newaxis,first_sample:last_sample]
+                eye_cut_left['qc'] = eyeDat_left['qc'][np.newaxis,first_sample:last_sample]
+                eye_cut_left['frame'] = eyeDat_left['frame'][np.newaxis,first_sample:last_sample]
+                eye_cut_right['x'] = eyeDat_right['x'][np.newaxis,first_sample:last_sample]
+                eye_cut_right['y'] = eyeDat_right['y'][np.newaxis,first_sample:last_sample]
+                eye_cut_right['radius'] = eyeDat_right['radius'][np.newaxis,first_sample:last_sample]
+                eye_cut_right['velocity'] = eyeDat_right['velocity'][np.newaxis,first_sample:last_sample]
+                eye_cut_right['qc'] = eyeDat_right['qc'][np.newaxis,first_sample:last_sample]
+                eye_cut_right['frame'] = eyeDat_right['frame'][np.newaxis,first_sample:last_sample]
+                # if the calibrated pupil data is in eyeDat then cut this too
+                if eyeDat_left.get('x_d') is not None:
+                    # we assume that if this field is here then all calibrated fields will be there
+                    eye_cut_left['x_d'] = eyeDat_left['x_d'][np.newaxis,first_sample:last_sample]
+                    eye_cut_left['y_d'] = eyeDat_left['y_d'][np.newaxis,first_sample:last_sample]
+                    eye_cut_left['radius_d'] = eyeDat_left['radius_d'][np.newaxis,first_sample:last_sample]
+                    eye_cut_left['velocity_d'] = eyeDat_left['velocity_d'][np.newaxis,first_sample:last_sample]
+                    eye_cut_right['x_d'] = eyeDat_right['x_d'][np.newaxis,first_sample:last_sample]
+                    eye_cut_right['y_d'] = eyeDat_right['y_d'][np.newaxis,first_sample:last_sample]
+                    eye_cut_right['radius_d'] = eyeDat_right['radius_d'][np.newaxis,first_sample:last_sample]
+                    eye_cut_right['velocity_d'] = eyeDat_right['velocity_d'][np.newaxis,first_sample:last_sample]          
+            else:
+                eye_cut_left['x'] = sparse_cat_np(eye_cut_left['x'],eyeDat_left['x'][np.newaxis,first_sample:last_sample])
+                eye_cut_left['y'] = sparse_cat_np(eye_cut_left['y'],eyeDat_left['y'][np.newaxis,first_sample:last_sample])
+                eye_cut_left['radius'] = sparse_cat_np(eye_cut_left['radius'],eyeDat_left['radius'][np.newaxis,first_sample:last_sample])
+                eye_cut_left['velocity'] = sparse_cat_np(eye_cut_left['velocity'],eyeDat_left['velocity'][np.newaxis,first_sample:last_sample])
+                eye_cut_left['qc'] = sparse_cat_np(eye_cut_left['qc'],eyeDat_left['qc'][np.newaxis,first_sample:last_sample])
+                eye_cut_left['frame'] = sparse_cat_np(eye_cut_left['qc'],eyeDat_left['frame'][np.newaxis,first_sample:last_sample])
+                eye_cut_right['x'] = sparse_cat_np(eye_cut_right['x'],eyeDat_right['x'][np.newaxis,first_sample:last_sample])
+                eye_cut_right['y'] = sparse_cat_np(eye_cut_right['y'],eyeDat_right['y'][np.newaxis,first_sample:last_sample])
+                eye_cut_right['radius'] = sparse_cat_np(eye_cut_right['radius'],eyeDat_right['radius'][np.newaxis,first_sample:last_sample])
+                eye_cut_right['velocity'] = sparse_cat_np(eye_cut_right['velocity'],eyeDat_right['velocity'][np.newaxis,first_sample:last_sample])
+                eye_cut_right['qc'] = sparse_cat_np(eye_cut_right['qc'],eyeDat_right['qc'][np.newaxis,first_sample:last_sample])
+                eye_cut_right['frame'] = sparse_cat_np(eye_cut_right['qc'],eyeDat_right['frame'][np.newaxis,first_sample:last_sample])
+                # if the calibrated pupil data is in eyeDat then cut this too
+                if eyeDat_left.get('x_d') is not None:
+                    # we assume that if this field is here then all calibrated fields will be there            
+                    eye_cut_left['x_d'] = sparse_cat_np(eye_cut_left['x_d'],eyeDat_left['x_d'][np.newaxis,first_sample:last_sample])
+                    eye_cut_left['y_d'] = sparse_cat_np(eye_cut_left['y_d'],eyeDat_left['y_d'][np.newaxis,first_sample:last_sample])
+                    eye_cut_left['radius_d'] = sparse_cat_np(eye_cut_left['radius_d'],eyeDat_left['radius_d'][np.newaxis,first_sample:last_sample])
+                    eye_cut_left['velocity_d'] = sparse_cat_np(eye_cut_left['velocity_d'],eyeDat_left['velocity_d'][np.newaxis,first_sample:last_sample])
+                    eye_cut_right['x_d'] = sparse_cat_np(eye_cut_right['x_d'],eyeDat_right['x_d'][np.newaxis,first_sample:last_sample])
+                    eye_cut_right['y_d'] = sparse_cat_np(eye_cut_right['y_d'],eyeDat_right['y_d'][np.newaxis,first_sample:last_sample])
+                    eye_cut_right['radius_d'] = sparse_cat_np(eye_cut_right['radius_d'],eyeDat_right['radius_d'][np.newaxis,first_sample:last_sample])
+                    eye_cut_right['velocity_d'] = sparse_cat_np(eye_cut_right['velocity_d'],eyeDat_right['velocity_d'][np.newaxis,first_sample:last_sample])
+        # make time vector
+        eye_sample_rate = 1/np.round(eyeDat_left['t'][1]-eyeDat_left['t'][0],4)
+        eye_cut_left['t'] = np.linspace(0,eye_cut_left['x'].shape[1]/eye_sample_rate,eye_cut_left['x'].shape[1]) - pre_time
+        eye_cut_right['t'] = np.linspace(0,eye_cut_right['x'].shape[1]/eye_sample_rate,eye_cut_right['x'].shape[1]) - pre_time
+        # save in pickle
+        with open(os.path.join(exp_dir_processed_cut,'eye_left_cut.pickle'), 'wb') as f: pickle.dump(eye_cut_left, f)        
+        with open(os.path.join(exp_dir_processed_cut,'eye_right_cut.pickle'), 'wb') as f: pickle.dump(eye_cut_right, f)  
+    else:
+        print('DLC data not found')
 
     ### Cut wheel data ###
     # wheel['position']
