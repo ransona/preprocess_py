@@ -116,7 +116,7 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
 
     ### Cut eye data ###
     # check DLC data exists
-    if os.path.exists(os.path.join(exp_dir_processed_recordings,'dlcEyeLeft_resampled.pickle')) and os.path.exists(os.path.join(exp_dir_processed_recordings,'dlcEyeRight_resampled.pickle'))
+    if os.path.exists(os.path.join(exp_dir_processed_recordings,'dlcEyeLeft_resampled.pickle')) and os.path.exists(os.path.join(exp_dir_processed_recordings,'dlcEyeRight_resampled.pickle')):
         # load dlc data
         eyeDat_left = pickle.load(open(os.path.join(exp_dir_processed_recordings,'dlcEyeLeft_resampled.pickle'), "rb"))
         eyeDat_right = pickle.load(open(os.path.join(exp_dir_processed_recordings,'dlcEyeRight_resampled.pickle'), "rb"))
