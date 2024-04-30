@@ -230,8 +230,18 @@ def run_preprocess_s2p(userID, expID):
             dF = (F_valid-baseline) / baseline
             # get times of each frame
             depthFrameTimes = frameTimes[iDepth+1:len(frameTimes):depthCount]
-            # make sure there are not more times than frames
-            depthFrameTimes = depthFrameTimes[:dF.shape[1]]
+            # make sure there are not more times than frames or vice versa
+            min_frame_count = min(dF.shape[1],len(depthFrameTimes))
+            if dF.shape[1]<len(depthFrameTimes):
+                print('Warning: less frames in tif than frame triggers, diff = ' + str(len(depthFrameTimes)-dF.shape[1]))
+            elif dF.shape[1]>len(depthFrameTimes):
+                print('Warning: less frame triggers than frames in tif, diff = ' + str(dF.shape[1]-len(depthFrameTimes)))
+        
+            depthFrameTimes = depthFrameTimes[:min_frame_count]
+            dF = dF[:,:min_frame_count]
+            F_valid = F_valid[:,:min_frame_count]
+            Spks_valid = Spks_valid[:,:min_frame_count]
+            
             # resample to get desired sampling rate
             dF_resampled = interpolate.interp1d(depthFrameTimes, dF.T, axis=0, fill_value="extrapolate")(outputTimes).T
             F_resampled = interpolate.interp1d(depthFrameTimes, F_valid.T, axis=0, fill_value="extrapolate")(outputTimes).T
