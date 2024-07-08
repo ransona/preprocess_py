@@ -3,6 +3,7 @@ import numpy as np
 import os
 from scipy.io import loadmat
 import organise_paths
+import pickle
 
 def preprocess_cam_run(userID, expID):
     print('Starting preprocess_cam_run...')
@@ -19,11 +20,18 @@ def preprocess_cam_run(userID, expID):
     tl_daqData = Timeline['daqData'][0,0]
     tl_time    = Timeline['time'][0][0][0]
 
-    # Load the MAT file
-    mat_contents = loadmat(os.path.join(exp_dir_raw, (expID + '_eyeMeta1.mat')))
-    eTrackData = mat_contents['eTrackData']
-    eye_frameTimes = eTrackData['frameTimes'][0][0][0]
-    eye_frameCount = eTrackData['frameCount'][0][0][0][0]
+    # Here load meta dta acquired with video frames. This contains frame times.
+    # This is either in a .mat file (pre 08/07/24) or in a .pickle files (after this date)
+    if os.path.isfile(os.path.join(exp_dir_raw, (expID + '_eyeMeta1.mat'))):
+        # Load the MAT file
+        mat_contents = loadmat(os.path.join(exp_dir_raw, (expID + '_eyeMeta1.mat')))
+        eTrackData = mat_contents['eTrackData']
+        eye_frameTimes = eTrackData['frameTimes'][0][0][0] # in one row array
+        # eye_frameCount = eTrackData['frameCount'][0][0][0][0] # single number
+    else:
+        # Load the pickle
+        pickle_contents = pickle.load(open(os.path.join(exp_dir_raw, (expID + '_eyeMeta1.pickle')), "rb"))
+        eye_frameTimes = np.array(pickle_contents['frame_times'])
 
     # Find the index of the 'EyeCamera' channel in the Timeline data
     camIdx = np.where(np.isin(tl_chNames, 'EyeCamera'))[0][0]
@@ -80,6 +88,7 @@ def preprocess_cam_run(userID, expID):
 def main():
     # expID
     expID = '2023-02-28_11_ESMT116'
+    expID = '2024-07-08_01_TEST'
     # user ID to use to place processed data
     userID = 'adamranson'
     preprocess_cam_run(userID, expID)
