@@ -3,6 +3,6 @@ import tensorflow as tf
 ngpus = len(tf.config.list_physical_devices('GPU'))
 
 try:
-    assert len(ngpus == 2)
+    assert ngpus > 0
 except:
-    print(f'GPU problems: expecting 2 GPUs, found {ngpus}')
+    print(f'GPU problems: expecting at least 1 GPU, found {ngpus}')

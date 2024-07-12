@@ -3,8 +3,12 @@ import organise_paths
 import subprocess
 import sys
 import preprocess_pupil
+import pickle
+
 
 def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, runfitpupil): 
+    print('Starting job: ' + jobID)
+    print('--------------------------------------------------')
     if not ',' in expID:
         # then there's only one experiment ID
         animalID, remote_repository_root, \
@@ -35,6 +39,26 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
         s2p_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/s2p_launcher.py')
         #cmd = 'conda run --no-capture-output --name suite2p python '+ s2p_launcher +' "' + userID + '" "' + expID + '" "' + tif_path + '" "' + config_path + '"'
         # cmd = ['conda','run' , '--no-capture-output','--name','suite2p','python',s2p_launcher,userID,expID,tif_path,config_path]
+        # run as user method:
+        # 1. load job config file
+        # 2. determine if suite2p conda env option is set
+        # 3. if set do:
+        # env = 'suite2p'
+        # cmd = ['sudo -u pmateosaparicio ', '/opt/scripts/conda-run.sh',env,'python',s2p_launcher,userID,expID,tif_path,config_path]
+        queue_path = '/data/common/queues/step1'
+        # debug:
+        # queue_path = '/data/common/queues/step1/completed'
+        # jobID = '2024_03_20_18_00_58_pmateosaparicio_2023-07-13_06_ESPM105'
+        # end debug
+        queued_command = pickle.load(open(os.path.join(queue_path,jobID), "rb"))
+        # check if a suite2p env has been set - if the suite2p from the launching users home will be used
+        if 'suite2p_env' in queued_command['config']:
+            print('Suite2p env found')
+            suite2p_env = queued_command['config']['suite2p_env']
+        else:
+            print('No suite2p env found - running in default adamranson:''suite2p env''')
+            suite2p_env = 'suite2p'
+        
         cmd = ['/opt/scripts/conda-run.sh','suite2p','python',s2p_launcher,userID,expID,tif_path,config_path]
         print('Starting S2P launcher...')
         #subprocess.run(cmd, shell=True)
