@@ -1,12 +1,3 @@
-import matrix_msg
-import scratch2
-import time
+import deeplabcut
 
-matrix_msg.main('adamranson','Test new room')
-
-# while True:
-#     start_time = time.time()
-#     matrix_msg.main('adamranson','Test new room')
-#     # scratch2.main('adamranson','T1')
-#     exe_time = time.time() - start_time
-#     print(f"{exe_time} secs")
+deeplabcut.analyze_videos('/data/common/dlc_models/eye/config.yaml', '/home/adamranson/dlc/test1/2023-05-15_06_ESMT134_eye1_left.avi', videotype='avi', shuffle=1, gputouse=0, save_as_csv=True, destfolder='/home/adamranson/dlc/test1/')
