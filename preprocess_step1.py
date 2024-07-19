@@ -54,12 +54,19 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
         # check if a suite2p env has been set - if the suite2p from the launching users home will be used
         if 'suite2p_env' in queued_command['config']:
             print('Suite2p env found')
+            print('Running as user ' + userID)
             suite2p_env = queued_command['config']['suite2p_env']
+            run_s2p_as_usr = True
         else:
             print('No suite2p env found - running in default adamranson:''suite2p env''')
             suite2p_env = 'suite2p'
+            run_s2p_as_usr = False
         
-        cmd = ['/opt/scripts/conda-run.sh','suite2p','python',s2p_launcher,userID,expID,tif_path,config_path]
+        if run_s2p_as_usr:
+            cmd = ['sudo', '-u', userID, '/opt/scripts/conda-run.sh',suite2p_env,'python',s2p_launcher,userID,expID,tif_path,config_path]
+        else:
+            cmd = ['/opt/scripts/conda-run.sh','suite2p','python',s2p_launcher,userID,expID,tif_path,config_path]
+
         print('Starting S2P launcher...')
         #subprocess.run(cmd, shell=True)
         # with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
@@ -161,10 +168,10 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
 
 # for debugging:
 def main():
-    jobID = 'debug.pickle'
-    expID = '2023-02-28_13_ESMT116,2023-02-28_14_ESMT116'
+    jobID = '00_00_00_00_00_00_adamranson_2023-05-15_05_ESMT134.pickle'
+    expID = '2023-05-15_05_ESMT134,2023-05-15_06_ESMT134'
     userID = 'adamranson'
-    suite2p_config = 'ch_1_depth_1.npy'
+    suite2p_config = 'ch_1_2_depth_5_axon.npy'
     runs2p          = True
     rundlc          = False
     runfitpupil     = False
