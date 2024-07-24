@@ -6,6 +6,7 @@ import organise_paths
 import pickle
 
 def preprocess_cam_run(userID, expID):
+    debug_mode = False
     print('Starting preprocess_cam_run...')
     animalID, remote_repository_root, \
     processed_root, exp_dir_processed, \
@@ -41,16 +42,18 @@ def preprocess_cam_run(userID, expID):
 
     # Do a quality check on the frame pulse times
     if np.min(np.diff(framePulseTimes)) < 14:
-        plt.figure()
-        if len(tl_time) > 100000:
-            plt.plot(tl_time[:100000], tl_daqData[:100000, camIdx])
+        if debug_mode:
+            plt.figure()
+            if len(tl_time) > 100000:
+                plt.plot(tl_time[:100000], tl_daqData[:100000, camIdx])
+            else:
+                plt.plot(tl_time[0:], tl_daqData[0:, camIdx])
+            plt.title('Eye camera timing pulses (ch' + str(camIdx) + ' of DAQ)')
+            plt.xlabel('Time (secs)')
+            plt.ylabel('Voltage (volts)')
         else:
-            plt.plot(tl_time[0:], tl_daqData[0:, camIdx])
-        plt.title('Eye camera timing pulses (ch' + str(camIdx) + ' of DAQ)')
-        plt.xlabel('Time (secs)')
-        plt.ylabel('Voltage (volts)')
-        print('The timing pulses on the eye camera look faulty - see the figure')
-        raise Exception('The timing pulses on the eye camera look faulty - see the figure')
+            print('The timing pulses on the eye camera look faulty')
+            raise Exception('The timing pulses on the eye camera look faulty - tunr on debug mode to see the figure')
 
     # Shift the logged frame times to align with the frame pulse times
     loggedFrameTimes = eye_frameTimes - eye_frameTimes[0]
