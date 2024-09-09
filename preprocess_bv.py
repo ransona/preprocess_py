@@ -50,9 +50,15 @@ def run_preprocess_bv(userID, expID):
     if pulse_diff > 0:
         print(str(pulse_diff) + ' more pulses in TL')
         flip_times_tl = flip_times_tl[:len(flip_times_bv)]
-    elif pulse_diff < 0:
+    elif pulse_diff < -1:
         print(str(pulse_diff * -1) + ' more pulses in BV')
         raise ValueError('Pulse mismatch')
+    elif pulse_diff == -1:
+        print(str(pulse_diff * -1) + ' more pulses in BV')
+        print('This issue needs to be monitored to find out why it is happening')
+        # could be that previous experiment has not been stopped properly and trial is still running?
+        print('Here we work around it...')
+        flip_times_bv = flip_times_bv[:len(flip_times_tl)]
     else:
         print('Pulse match')
 

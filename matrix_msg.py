@@ -2,6 +2,8 @@ from matrix_client.client import MatrixClient
 from matrix_client.api import MatrixHttpApi
 import json
 import time
+from datetime import datetime, timedelta
+
 
 # Replace these values with your own
 MATRIX_SERVER = "https://matrix.org"
@@ -82,6 +84,8 @@ def main(target_user, msg, group=''):
             print("WARNING: YOU DO NOT HAVE AN ELEMENT USERNAME PAIRED TO YOUR UBUNTU USERNAME - PLEASE REQUEST THIS FOR ELEMENT NOTIFICATIONS")
     except:
         print('####### UNHANDLED ELEMENT ERROR ##############')
+
+   
 
 def lookup_user(username):
     if username == 'adamranson':
