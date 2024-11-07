@@ -1,6 +1,8 @@
 import asyncio
-
+import produce_pupil_calibration
 from nio import AsyncClient, MatrixRoom, RoomMessageText
+
+
 
 
 async def message_callback(room: MatrixRoom, event: RoomMessageText) -> None:
@@ -15,7 +17,7 @@ async def main() -> None:
 
     client.add_event_callback(message_callback, RoomMessageText)
 
-    print(await client.login("db_psw_4567%"))
+    print(await client.login(""))
     # "Logged in as @alice:example.org device id: RANDOMDID"
 
     # If you made a new room and haven't joined as that user, you can use

@@ -15,6 +15,11 @@ def run_preprocess_s2p(userID, expID):
         exp_dir_raw = organise_paths.find_paths(userID, expID)
     exp_dir_processed_recordings = os.path.join(processed_root, animalID, expID,'recordings')
 
+    # load the pipeline command configuration file
+    with open(os.path.join(exp_dir_processed,'step2_config.pickle'), "rb") as file: 
+        step2_config = pickle.load(file)
+
+
     # load timeline
     Timeline = loadmat(os.path.join(exp_dir_raw, expID + '_Timeline.mat'))
     Timeline = Timeline['timelineSession']
@@ -23,9 +28,30 @@ def run_preprocess_s2p(userID, expID):
     tl_daqData = Timeline['daqData'][0,0]
     tl_time    = Timeline['time'][0][0]
 
-    subtract_overall_frame = False
     resampleFreq = 30
-    neuropilWeight = 0.7
+
+    # subtract overall frame or not
+    subtract_overall_frame_config = step2_config.get('settings', {}).get('subtract_overall_frame')
+    if subtract_overall_frame_config is None:
+        subtract_overall_frame = False
+    else:
+        subtract_overall_frame = subtract_overall_frame_config
+
+    # get the neuropil coefficient from config if present or default to 0.7
+    neuropil_coeff_config = step2_config.get('settings', {}).get('neuropil_coeff')
+    # Initialize neuropilWeight with a default two-element list
+    if neuropil_coeff_config is None:
+        neuropilWeight = [0.7, 0.7]  # Default values if neuropil_coeff_config is not provided
+    elif isinstance(neuropil_coeff_config, float):
+        neuropilWeight = [neuropil_coeff_config, neuropil_coeff_config]  # Duplicate float if single value
+    elif isinstance(neuropil_coeff_config, (list, tuple)):
+        if len(neuropil_coeff_config) == 1:
+            neuropilWeight = [neuropil_coeff_config[0], neuropil_coeff_config[0]]  # Duplicate single element
+        else:
+            neuropilWeight = list(neuropil_coeff_config[:2])  # Take the first two elements if it's longer
+    else:
+        raise TypeError("Unexpected type for neuropil_coeff_config. Expected float, list, or tuple.")
+
     # initiate these as dict:
     alldF = {}
     allF = {}
@@ -168,7 +194,7 @@ def run_preprocess_s2p(userID, expID):
                 F_valid = F_valid - np.tile(meanFrameTimecourse, (F_valid.shape[0], 1))
 
             # neuropil subtraction
-            F_valid = F_valid - (Fneu_valid * neuropilWeight)
+            F_valid = F_valid - (Fneu_valid * neuropilWeight[iCh])
 
             # Ensure min(corrected F) > 10
             FMins = np.min(F_valid, axis=1)
