@@ -41,7 +41,10 @@ def preprocess_cam_run(userID, expID):
     framePulseTimes = tl_time[np.where(np.diff(camPulseTrace) == 1)] # each pos going edge = 200 frames (except first)
 
     # Do a quality check on the frame pulse times
-    if np.min(np.diff(framePulseTimes)) < 10:
+    # One positive going pulse comes every 200 frames acquired
+    # @ 20fps this is 10s - should be less than 10s (i.e. better than 20fps)
+    # @ 50fps this is 4s - should be more than 4s (i.e. worse than 50fpsfps)
+    if np.min(np.diff(framePulseTimes)) < 4:
         if debug_mode:
             plt.figure()
             if len(tl_time) > 100000:
