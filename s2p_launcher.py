@@ -59,7 +59,7 @@ def s2p_launcher_run(userID,expID,tif_path,config_path):
 
 # for debugging:
 def main():
-    print('Starting S2P Launcher...')
+    print('S2P Launcher Run...')
     try:
         # has been run from sys command line after conda activate
         userID = sys.argv[1]
