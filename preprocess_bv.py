@@ -36,7 +36,7 @@ def run_preprocess_bv(userID, expID):
     Timestamp = frame_events['Timestamp'].values
     Sync = frame_events['Sync'].values
     Trial = frame_events['Trial']
-    flip_idx = np.where(np.diff(Sync) == -1)
+    # flip_idx = np.where(np.diff(Sync) == -1)
     flip_times_bv = np.squeeze(Timestamp[np.where((np.diff(Sync) == 1))[0]])
 
     # Find TL times when digital flips
