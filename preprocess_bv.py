@@ -7,6 +7,7 @@ from scipy.io import loadmat
 import matplotlib.pyplot as plt
 import organise_paths
 import pickle
+from datetime import datetime
 
 def run_preprocess_bv(userID, expID):
     print('Starting run_preprocess_bv...')
@@ -36,29 +37,30 @@ def run_preprocess_bv(userID, expID):
     Sync = frame_events['Sync'].values
     Trial = frame_events['Trial']
     flip_idx = np.where(np.diff(Sync) == -1)
-    flip_times_bv = np.squeeze(Timestamp[np.where((np.diff(Sync) == -1))[0]])
+    flip_times_bv = np.squeeze(Timestamp[np.where((np.diff(Sync) == 1))[0]])
 
     # Find TL times when digital flips
     bv_ch = np.where(np.isin(tl_chNames, 'Bonvision'))
     tl_dig_thresholded = np.squeeze((tl_daqData[:, bv_ch] > 2.5).astype(int))
 
-    flip_times_tl = np.squeeze(tl_time[0,np.where(np.diff(tl_dig_thresholded) == -1)])
+    flip_times_tl = np.squeeze(tl_time[0,np.where(np.diff(tl_dig_thresholded) == 1)])
     # Check NI DAQ caught as many sync pulses as BV produced
     pulse_diff = len(flip_times_tl) - len(flip_times_bv)
     print(str(len(flip_times_tl)) + ' pulses found in TL')
 
     if pulse_diff > 0:
         print(str(pulse_diff) + ' more pulses in TL')
-        flip_times_tl = flip_times_tl[:len(flip_times_bv)]
+        raise ValueError('Pulse mismatch')
     elif pulse_diff < -1:
         print(str(pulse_diff * -1) + ' more pulses in BV')
         raise ValueError('Pulse mismatch')
     elif pulse_diff == -1:
         print(str(pulse_diff * -1) + ' more pulses in BV')
         print('This issue needs to be monitored to find out why it is happening')
+        raise ValueError('Pulse mismatch')
         # could be that previous experiment has not been stopped properly and trial is still running?
-        print('Here we work around it...')
-        flip_times_bv = flip_times_bv[:len(flip_times_tl)]
+        # print('Here we work around it...')
+        # flip_times_bv = flip_times_bv[:len(flip_times_tl)]
     else:
         print('Pulse match')
 
@@ -142,12 +144,26 @@ def run_preprocess_bv(userID, expID):
     all_trials = pd.read_csv(os.path.join(exp_dir_raw, expID + '_all_trials.csv'))
     all_trials.insert(0,'time',trialOnsetTimesTL)
     all_trials.to_csv(os.path.join(exp_dir_processed, expID + '_all_trials.csv'), index=False)
+    # add some debugging logging info
+    current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_file_path = os.path.join(exp_dir_processed, expID + '_processing_log.txt')
+    # Check if the file exists
+    if os.path.exists(log_file_path):
+        # Append the current date and time to the file
+        with open(log_file_path, "a") as file:
+            file.write(f"{current_datetime}: preprocessed_bv [extra pulse bug fixed]\n")
+    else:
+        # Create the file and write the current date and time
+        with open(log_file_path, "w") as file:
+            file.write(f"{current_datetime}: preprocessed_bv [extra pulse bug fixed]\n")    
+
     print('Done without errors')
 
     # for debugging:
 def main():
-    userID = 'adamranson'
-    expID = '2024-07-17_01_ESMT170'
+    userID = 'melinatimplalexi'
+    # userID = 'pedromatteos'
+    expID = '2024-10-03_04_ESMT191'
     run_preprocess_bv(userID, expID)
 
 if __name__ == "__main__":
