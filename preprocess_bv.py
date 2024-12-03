@@ -36,35 +36,96 @@ def run_preprocess_bv(userID, expID):
     Timestamp = frame_events['Timestamp'].values
     Sync = frame_events['Sync'].values
     Trial = frame_events['Trial']
-    # flip_idx = np.where(np.diff(Sync) == -1)
-    flip_times_bv = np.squeeze(Timestamp[np.where((np.diff(Sync) == 1))[0]])
+    if Sync[0] == 1:
+        sync_polarity = -1
+    else:
+        sync_polarity = 1
+
+    flip_times_bv = np.squeeze(Timestamp[np.where((np.diff(Sync) == sync_polarity))[0]])
 
     # Find TL times when digital flips
     bv_ch = np.where(np.isin(tl_chNames, 'Bonvision'))
     tl_dig_thresholded = np.squeeze((tl_daqData[:, bv_ch] > 2.5).astype(int))
+    flip_times_tl = np.squeeze(tl_time[0,np.where(np.diff(tl_dig_thresholded) == sync_polarity)])
 
-    flip_times_tl = np.squeeze(tl_time[0,np.where(np.diff(tl_dig_thresholded) == 1)])
+    # Find PD ch
+    # pd_ch = np.where(np.isin(tl_chNames, 'Photodiode'))
+    # plt.plot(np.squeeze(tl_daqData[:, pd_ch]))
+    # plt.plot(np.squeeze(tl_daqData[:, bv_ch]))
+    # plt.show()
+    # plt.figure()
+    # plt.plot(Timestamp,Sync,label='BV')
+    # plt.plot(tl_time[0],tl_dig_thresholded,label='TL')
+    # plt.legend()
+    # plt.show()
+
+
+    # if Sync[0] == 1:
+    #     # if it starts high, remove the first flip
+    #     flip_times_tl = flip_times_tl[1:]
+
+    # compare bv and tl flip time intervals
+    bv_flip_intervals = np.diff(flip_times_bv)
+    tl_flip_intervals = np.diff(flip_times_tl)
+    # plt.plot(bv_flip_intervals, label='BV')
+    # plt.plot(tl_flip_intervals, label='TL')
+    # plt.legend()
+    # plt.show(block=False)
+
+ 
+    # Calc corr to check TL and BV timing pulses are aligned
+    trace1 = bv_flip_intervals.astype(float)
+    trace2 = tl_flip_intervals.astype(float)
+    trace1 = (trace1 - np.mean(trace1)) / np.std(trace1)
+    trace2 = (trace2 - np.mean(trace2)) / np.std(trace2)
+
+    min_length = min(len(trace1), len(tl_flip_intervals))
+
+    trace1 = trace1[0:min_length]
+    trace2 = trace2[0:min_length]
+
+    correlation = np.correlate(trace1, trace2, mode='full')
+    lags = np.arange(-len(trace1) + 1, len(trace1))
+    # Find the lag corresponding to the maximum correlation
+    max_correlation_index = np.argmax(correlation)
+    lag_in_samples = lags[max_correlation_index]
+
+    if lag_in_samples != 0:
+        raise ValueError('Bad alignment of BV and TL pulses')
+
+    # # correct lag
+    # if lag_in_samples < 0:
+    #     flip_times_tl = flip_times_tl[-lag_in_samples:]
+    # elif lag_in_samples > 0:
+    #     flip_times_bv = flip_times_bv[lag_in_samples:]
+
+    # min_length = min(len(flip_times_tl), len(flip_times_bv))
+    # flip_times_tl = flip_times_tl[:min_length]
+    # flip_times_bv = flip_times_bv[:min_length]
+    
+    # # compare bv and tl flip time intervals
+    # bv_flip_intervals = np.diff(flip_times_bv)
+    # tl_flip_intervals = np.diff(flip_times_tl)
+    # plt.plot(bv_flip_intervals, label='BV')
+    # plt.plot(tl_flip_intervals, label='TL')
+    # plt.legend()
+    # plt.show()    
+
     # Check NI DAQ caught as many sync pulses as BV produced
     pulse_diff = len(flip_times_tl) - len(flip_times_bv)
+    print('Pulse diff = ' + str(pulse_diff))
     print(str(len(flip_times_tl)) + ' pulses found in TL')
 
     if pulse_diff > 0:
         print(str(pulse_diff) + ' more pulses in TL')
         raise ValueError('Pulse mismatch')
-    elif pulse_diff < -1:
+    elif pulse_diff < 0:
         print(str(pulse_diff * -1) + ' more pulses in BV')
         raise ValueError('Pulse mismatch')
-    elif pulse_diff == -1:
-        print(str(pulse_diff * -1) + ' more pulses in BV')
-        print('This issue needs to be monitored to find out why it is happening')
-        raise ValueError('Pulse mismatch')
-        # could be that previous experiment has not been stopped properly and trial is still running?
-        # print('Here we work around it...')
-        # flip_times_bv = flip_times_bv[:len(flip_times_tl)]
     else:
         print('Pulse match')
 
-    # Make model to convert BV time to TL time
+    # Fit model to convert BV time to TL time
     mdl1 = LinearRegression()
     mdl1.fit(flip_times_bv.reshape((-1, 1)), flip_times_tl)
 
@@ -144,26 +205,13 @@ def run_preprocess_bv(userID, expID):
     all_trials = pd.read_csv(os.path.join(exp_dir_raw, expID + '_all_trials.csv'))
     all_trials.insert(0,'time',trialOnsetTimesTL)
     all_trials.to_csv(os.path.join(exp_dir_processed, expID + '_all_trials.csv'), index=False)
-    # add some debugging logging info
-    current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_file_path = os.path.join(exp_dir_processed, expID + '_processing_log.txt')
-    # Check if the file exists
-    if os.path.exists(log_file_path):
-        # Append the current date and time to the file
-        with open(log_file_path, "a") as file:
-            file.write(f"{current_datetime}: preprocessed_bv [extra pulse bug fixed]\n")
-    else:
-        # Create the file and write the current date and time
-        with open(log_file_path, "w") as file:
-            file.write(f"{current_datetime}: preprocessed_bv [extra pulse bug fixed]\n")    
-
     print('Done without errors')
 
     # for debugging:
 def main():
     userID = 'melinatimplalexi'
-    # userID = 'pedromatteos'
-    expID = '2024-10-03_04_ESMT191'
+    userID = 'pmateosaparicio'
+    expID = '2024-11-11_01_ESPM115'
     run_preprocess_bv(userID, expID)
 
 if __name__ == "__main__":
