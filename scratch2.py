@@ -52,10 +52,10 @@ def run_preprocess_bv(userID, expID):
     flip_times_tl = np.squeeze(tl_time[0,np.where(np.diff(tl_dig_thresholded) == sync_polarity)])
 
     # Find PD ch
-    # pd_ch = np.where(np.isin(tl_chNames, 'Photodiode'))
-    # plt.plot(np.squeeze(tl_daqData[:, pd_ch]))
-    # plt.plot(np.squeeze(tl_daqData[:, bv_ch]))
-    # plt.show()
+    pd_ch = np.where(np.isin(tl_chNames, 'Photodiode'))
+    plt.plot(np.squeeze(tl_daqData[:, pd_ch]))
+    plt.plot(np.squeeze(tl_daqData[:, bv_ch]))
+    plt.show()
     # plt.figure()
     # plt.plot(Timestamp,Sync,label='BV')
     # plt.plot(tl_time[0],tl_dig_thresholded,label='TL')
@@ -141,6 +141,15 @@ def run_preprocess_bv(userID, expID):
     # in TL time
     trialOnsetTimesTL = mdl1.predict(pd.DataFrame(trialOnsetTimesBV))
 
+    tl_time2 = np.squeeze(tl_time)
+    pd_trace = np.squeeze(tl_daqData[:, pd_ch])
+    pd_trace = (pd_trace > 0.4).astype(int)
+    pd_times = np.squeeze(tl_time2[np.where(np.diff(pd_trace)==1)])
+    plt.plot(np.squeeze(tl_time),pd_trace)
+    plt.scatter(trialOnsetTimesTL, np.ones(trialOnsetTimesTL.shape)*0.6)
+    plt.hist(pd_times-trialOnsetTimesTL)
+    plt.show()
+    all_diffs = np.average(pd_times-trialOnsetTimesTL)
     # load matlab expData file
     expData = loadmat(os.path.join(exp_dir_raw, expID + '_stim.mat'))
     stims = expData['expDat']['stims']
@@ -196,25 +205,25 @@ def run_preprocess_bv(userID, expID):
     # plt.tight_layout()
     # plt.show() 
 
-    # Save data
-    wheel = {}
-    wheel['position'] = np.concatenate([filler_position,np.array(wheelPos2)],axis = 0)
-    wheel['speed'] = np.concatenate([filler_speed,np.array(wheelSpeed)],axis = 0)
-    wheel['t'] = np.concatenate([filler_t,np.array(wheelLinearTimescale)],axis = 0)
-    with open(os.path.join(exp_dir_processed_recordings, 'wheel.pickle'), 'wb') as f: pickle.dump(wheel, f)
+    # # Save data
+    # wheel = {}
+    # wheel['position'] = np.concatenate([filler_position,np.array(wheelPos2)],axis = 0)
+    # wheel['speed'] = np.concatenate([filler_speed,np.array(wheelSpeed)],axis = 0)
+    # wheel['t'] = np.concatenate([filler_t,np.array(wheelLinearTimescale)],axis = 0)
+    # with open(os.path.join(exp_dir_processed_recordings, 'wheel.pickle'), 'wb') as f: pickle.dump(wheel, f)
 
-    # output a csv file which contains dataframe of all trials with first column showing trial onset time
-    # read the all trials file, append trial onset times to first column (trialOnsetTimesTL)
-    all_trials = pd.read_csv(os.path.join(exp_dir_raw, expID + '_all_trials.csv'))
-    all_trials.insert(0,'time',trialOnsetTimesTL)
-    all_trials.to_csv(os.path.join(exp_dir_processed, expID + '_all_trials.csv'), index=False)
-    print('Done without errors')
+    # # output a csv file which contains dataframe of all trials with first column showing trial onset time
+    # # read the all trials file, append trial onset times to first column (trialOnsetTimesTL)
+    # all_trials = pd.read_csv(os.path.join(exp_dir_raw, expID + '_all_trials.csv'))
+    # all_trials.insert(0,'time',trialOnsetTimesTL)
+    # all_trials.to_csv(os.path.join(exp_dir_processed, expID + '_all_trials.csv'), index=False)
+    # print('Done without errors')
 
     # for debugging:
 def main():
-    userID = 'melinatimplalexi'
+    userID = 'adamranson'
     # userID = 'pmateosaparicio'
-    expID = '2024-09-04_03_ESMT186'
+    expID = '2024-12-04_04_TEST'
     run_preprocess_bv(userID, expID)
 
 if __name__ == "__main__":

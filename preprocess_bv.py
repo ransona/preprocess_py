@@ -137,6 +137,10 @@ def run_preprocess_bv(userID, expID):
     trialOnsetTimesBV = np.insert(trialOnsetTimesBV,0,Timestamp[0])
     # in TL time
     trialOnsetTimesTL = mdl1.predict(pd.DataFrame(trialOnsetTimesBV))
+    # add BV latency 04.12.24
+    # this was an empirically determined value to account for the delay between the BV and photodiode trial onset times
+    bv_trial_latency = 220
+    trialOnsetTimesTL = trialOnsetTimesTL + bv_trial_latency
 
     # load matlab expData file
     expData = loadmat(os.path.join(exp_dir_raw, expID + '_stim.mat'))
@@ -209,9 +213,9 @@ def run_preprocess_bv(userID, expID):
 
     # for debugging:
 def main():
-    userID = 'melinatimplalexi'
+    # userID = 'melinatimplalexi'
     userID = 'pmateosaparicio'
-    expID = '2024-11-11_01_ESPM115'
+    expID = '2023-04-21_05_ESMT120'
     run_preprocess_bv(userID, expID)
 
 if __name__ == "__main__":
