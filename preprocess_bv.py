@@ -139,7 +139,7 @@ def run_preprocess_bv(userID, expID):
     trialOnsetTimesTL = mdl1.predict(pd.DataFrame(trialOnsetTimesBV))
     # add BV latency 04.12.24
     # this was an empirically determined value to account for the delay between the BV and photodiode trial onset times
-    bv_trial_latency = 220
+    bv_trial_latency = 0.220
     trialOnsetTimesTL = trialOnsetTimesTL + bv_trial_latency
 
     # load matlab expData file
