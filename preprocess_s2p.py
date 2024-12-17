@@ -223,7 +223,7 @@ def run_preprocess_s2p(userID, expID):
 
             for iRoi in range(F_valid.shape[0]):
                 # collect pix in ROI
-                roiPix.append(np.ravel_multi_index((ypix[iRoi]+1,xpix[iRoi]+1), np.shape(s2p_ops['meanImg'])))
+                roiPix.append(np.ravel_multi_index((ypix[iRoi],xpix[iRoi]), np.shape(s2p_ops['meanImg'])))
                 # label ROI map
                 roiMap[ypix[iRoi], xpix[iRoi]] = iRoi+1
             # plt.figure

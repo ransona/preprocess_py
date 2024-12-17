@@ -1,13 +1,13 @@
 # these scripts are to run commands that need to be run in specific conda environments
 # they should be run from the command line
-from conceivable import thread_limit
+# from conceivable import thread_limit
 import sys
 import suite2p
 import organise_paths
 import numpy as np
 import os
 
-def s2p_launcher_run(userID,expID,tif_path,config_path):
+def s2p_launcher_run(userID,expID,tif_path,config_path,save_path):
     # determine if several experiments are being run together or not:
 
     # # remove any existing data
@@ -29,7 +29,7 @@ def s2p_launcher_run(userID,expID,tif_path,config_path):
         # then we are running on 2 functional channels (this is a hack to encode this info)
         db = {
             'data_path': allTifPaths,
-            'save_path0': os.path.join(exp_dir_processed,'denoised_tifs')
+            'save_path0': save_path
             #'save_disk': exp_dir_processed, # where bin is moved after processing
             #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
             }
@@ -39,7 +39,7 @@ def s2p_launcher_run(userID,expID,tif_path,config_path):
         # can be improved to avoid registering twice and making two copies of data!
         db = {
             'data_path': allTifPaths,
-            'save_path0': os.path.join(exp_dir_processed,'denoised_tifs','ch2')
+            'save_path0': os.path.join(save_path,'ch2')
             #'save_disk': exp_dir_processed, # where bin is moved after processing
             #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
             }
@@ -50,7 +50,7 @@ def s2p_launcher_run(userID,expID,tif_path,config_path):
         # run green ch
         db = {
             'data_path': allTifPaths,
-            'save_path0': os.path.join(exp_dir_processed,'denoised_tifs')
+            'save_path0': os.path.join(save_path)
             #'save_disk': exp_dir_processed, # where bin is moved after processing
             #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
             }
@@ -66,6 +66,7 @@ def main():
         expID = sys.argv[2]
         tif_path = sys.argv[3]
         config_path = sys.argv[4]
+        final_save_path = sys.argv[5]
     except:
         # debug mode
         expID = '2023-02-28_13_ESMT116'
@@ -76,7 +77,7 @@ def main():
         tif_path = '/data/Remote_Repository/ESMT116/2023-02-28_13_ESMT116,/data/Remote_Repository/ESMT116/2023-02-28_14_ESMT116'
         config_path = os.path.join('/home',userID,'data/configs/s2p_configs','ch_1_depth_1.npy')
 
-    s2p_launcher_run(userID,expID,tif_path,config_path)
+    s2p_launcher_run(userID,expID,tif_path,config_path,final_save_path)
 
 if __name__ == "__main__":
     main()

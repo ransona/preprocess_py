@@ -1,24 +1,18 @@
+import harp
 import os
 import numpy as np
-import pandas as pd
-from sklearn.linear_model import LinearRegression
-from scipy import interpolate
-from scipy import signal
-from scipy.io import loadmat
-import matplotlib.pyplot as plt
-import pickle
-import organise_paths
+import matplotlib.pyplot as plt 
+data_dir = '/home/adamranson/temp/harp_bin/'
+os.chdir(data_dir)
+reader = harp.create_reader(data_dir)
 
-def run_preprocess_s2p(userID, expID):
-    animalID, remote_repository_root, \
-    processed_root, exp_dir_processed, \
-        exp_dir_raw = organise_paths.find_paths(userID, expID)
+# data_read = reader.OperationControl.read('Behavior_10.bin')
+data_read = reader.AnalogData.read()
+data_read = harp.io.read('Behavior_44.bin')
+data_read_np = np.array(data_read)
+plt.figure()
 
-
-    # load timeline
-    Timeline = loadmat(os.path.join(exp_dir_raw, expID + '_Timeline.mat'))
-    Timeline = Timeline['timelineSession']
-    # get timeline file in a usable format after importing to python
-    tl_chNames = Timeline['chNames'][0][0][0][0:]
-    tl_daqData = Timeline['daqData'][0,0]
-    tl_time    = Timeline['time'][0][0]
+# plt.plot(data_read_np[:,0], data_read_np[:,1])
+plt.plot(data_read_np[:,0])
+plt.show()
+x = 0
