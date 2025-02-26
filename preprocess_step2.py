@@ -14,6 +14,7 @@ import preprocess_ephys
 import preprocess_pupil_timestamp
 import preprocess_cut
 import preprocess_cam
+import datetime
 
 def run_preprocess_step2(userID, expID, pre_secs, post_secs, run_bonvision, run_s2p_timestamp, run_ephys, run_dlc_timestamp, run_cuttraces): 
     animalID, remote_repository_root, \
@@ -31,7 +32,17 @@ def run_preprocess_step2(userID, expID, pre_secs, post_secs, run_bonvision, run_
         ###########################################################
         # process bonvision related data, this includes relating bon vision time to TL time and wheel data
         print('Starting bonvision section...')
-        preprocess_bv.run_preprocess_bv(userID,expID)
+        # run version dependent on if we are using the new or old bonvision workflow
+        exp_date = expID[0:10]
+        exp_date = exp_date = expID[0:10]
+        # test if experiment was performed after 2025-24-01
+        if datetime.datetime.strptime(exp_date, '%Y-%m-%d') > datetime.datetime.strptime('2025-24-01', '%Y-%d-%m'):
+            # run new bonvision workflow analysis
+            preprocess_bv.run_preprocess_bv2(userID,expID) 
+        else:
+            # run old bonvision workflow analysis
+            preprocess_bv.run_preprocess_bv(userID,expID)        
+        
 
     if run_s2p_timestamp:
         ###########################################################
