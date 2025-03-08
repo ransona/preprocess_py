@@ -154,7 +154,7 @@ def run_preprocess_bv2(userID, expID):
     wheel_pos_smooth[0:smooth_window] = wheel_pos_resampled[0]
     wheel_pos_smooth[-smooth_window:] = wheel_pos_resampled[-1]
     # Calc diff between position samples and then mutiply by circumference of the running wheel
-    wheel_diameter = 20 # cm
+    wheel_diameter = 17.5 # cm
     encoder_resolution = 1024
     wheel_circumference = wheel_diameter * np.pi
     # mouse velocity in cm/sample (at 20Hz)

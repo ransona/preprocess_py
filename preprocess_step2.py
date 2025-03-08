@@ -8,7 +8,8 @@
 
 import os
 import organise_paths 
-import preprocess_bv 
+import preprocess_bv
+import preprocess_bv2
 import preprocess_s2p
 import preprocess_ephys
 import preprocess_pupil_timestamp
@@ -38,7 +39,7 @@ def run_preprocess_step2(userID, expID, pre_secs, post_secs, run_bonvision, run_
         # test if experiment was performed after 2025-24-01
         if datetime.datetime.strptime(exp_date, '%Y-%m-%d') > datetime.datetime.strptime('2025-24-01', '%Y-%d-%m'):
             # run new bonvision workflow analysis
-            preprocess_bv.run_preprocess_bv2(userID,expID) 
+            preprocess_bv2.run_preprocess_bv2(userID,expID) 
         else:
             # run old bonvision workflow analysis
             preprocess_bv.run_preprocess_bv(userID,expID)        

@@ -305,7 +305,7 @@ def main():
 
     allExp = ['2025-01-16_01_YBBT002']
     allExp = ['2025-01-16_01_YBBT002']
-    allExp = ['2025-02-25_03_ESPM126']
+    allExp = ['2025-02-26_02_ESPM126']
     for expID in allExp:
         drift = bv_timing_bug2(userID, expID,plot_on=True)
         print(expID + ', ' + str(drift))
