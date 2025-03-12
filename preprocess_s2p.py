@@ -95,6 +95,10 @@ def run_preprocess_s2p(userID, expID):
 
     # determine time of each frame
     frameTimes = np.squeeze(tl_time)[np.where(np.diff(neuralFramesPulses)==1)[0]]
+    # convert frame start times to midframe times
+    time_diffs = time_diffs = np.append(np.diff(frameTimes), np.diff(frameTimes)[-1])
+    frameTimes = frameTimes + (time_diffs/2)
+
     framePulsesPerDepth = len(frameTimes)/depthCount
     frameRate = 1/np.median(np.diff(frameTimes))
     frameRatePerPlane = frameRate/depthCount
@@ -255,7 +259,7 @@ def run_preprocess_s2p(userID, expID):
             # # calculate dF/F
             dF = (F_valid-baseline) / baseline
             # get times of each frame
-            depthFrameTimes = frameTimes[iDepth+1:len(frameTimes):depthCount]
+            depthFrameTimes = frameTimes[iDepth:len(frameTimes):depthCount]
             # make sure there are not more times than frames or vice versa
             min_frame_count = min(dF.shape[1],len(depthFrameTimes))
             if dF.shape[1]<len(depthFrameTimes):
@@ -269,9 +273,9 @@ def run_preprocess_s2p(userID, expID):
             Spks_valid = Spks_valid[:,:min_frame_count]
             
             # resample to get desired sampling rate
-            dF_resampled = interpolate.interp1d(depthFrameTimes, dF.T, axis=0, fill_value="extrapolate")(outputTimes).T
-            F_resampled = interpolate.interp1d(depthFrameTimes, F_valid.T, axis=0, fill_value="extrapolate")(outputTimes).T
-            Spks_resampled = interpolate.interp1d(depthFrameTimes, Spks_valid.T, axis=0, fill_value="extrapolate")(outputTimes).T
+            dF_resampled = interpolate.interp1d(depthFrameTimes, dF.T, axis=0, kind='previous',fill_value="extrapolate")(outputTimes).T
+            F_resampled = interpolate.interp1d(depthFrameTimes, F_valid.T, axis=0, kind='previous',fill_value="extrapolate")(outputTimes).T
+            Spks_resampled = interpolate.interp1d(depthFrameTimes, Spks_valid.T, axis=0, kind='previous',fill_value="extrapolate")(outputTimes).T
             # if there is only one cell ensure it is rotated to (cell,time) orientation
             if len(dF_resampled.shape) == 1:
                 # add the new axis to make sure it is (cell,time)
@@ -321,3 +325,15 @@ def run_preprocess_s2p(userID, expID):
         pickle_out.close()
 
     print('2-photon preprocessing done')
+
+
+# for debugging:
+def main():
+    # debug mode
+    print('Parameters received via debug mode')
+    userID = 'adamranson'
+    expID = '2025-03-05_02_ESMT204'
+    run_preprocess_s2p(userID, expID)    
+
+if __name__ == "__main__":
+    main()
