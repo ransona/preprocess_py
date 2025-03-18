@@ -34,6 +34,8 @@ def run_preprocess_bv2(userID, expID):
     # load BV data
     frame_events = pd.read_csv(os.path.join(exp_dir_raw, expID + '_FrameEvents.csv'), names=['Frame', 'Timestamp', 'Sync', 'Trial'],
                             header=None, skiprows=[0], dtype={'Frame':np.float32, 'Timestamp':np.float32, 'Sync':np.float32, 'Trial':np.float32})
+    bv_encoder = pd.read_csv(os.path.join(exp_dir_raw, expID + '_Encoder.csv'), names=['Frame', 'Timestamp', 'Unknown', 'Encoder'],
+                            header=None, skiprows=[0], dtype={'Frame':np.float32, 'Timestamp':np.float32, 'Sync':np.float32, 'Trial':np.float32})    
 
     # load Harp raw data
     harp_data_path = os.path.join(exp_dir_raw, expID + '_Behavior_Event44.bin')
@@ -51,6 +53,11 @@ def run_preprocess_bv2(userID, expID):
     harp_pd_smoothed = pd.Series(harp_pd).rolling(window=20, min_periods=1).mean().values
     harp_pd_high = np.percentile(harp_pd_smoothed, 99)
     harp_pd_low = np.percentile(harp_pd_smoothed, 1)   
+    harp_pd_on_off_ratio = (harp_pd_high - harp_pd_low) / harp_pd_low 
+    if harp_pd_on_off_ratio > 10:
+        harp_pd_valid = True  
+    else:
+        harp_pd_valid = False          
     harp_pd_threshold = harp_pd_low + ((harp_pd_high - harp_pd_low)*0.7)
     harp_pd_thresholded = np.where(harp_pd_smoothed < harp_pd_threshold, 0, 1)
     transitions = np.diff(harp_pd_thresholded)
@@ -67,7 +74,7 @@ def run_preprocess_bv2(userID, expID):
     # since the first flip is at time zero and thus not detectable we add it manually:
     flip_times_bv_bv = np.insert(flip_times_bv_bv,0,Timestamp[0])
 
-    # Find TL times when digital flips
+    # Find TL times when PD flips
     tl_pd_ch = np.where(np.isin(tl_chNames, 'Photodiode'))
     tl_pd = np.squeeze(tl_daqData[:, tl_pd_ch])
     # Needs to be smoothed because the photodiode signal is noisy and monitor blanking can further screw it up
@@ -76,33 +83,92 @@ def run_preprocess_bv2(userID, expID):
     # Calculate threshold for PD signal
     tl_pd_high = np.percentile(tl_pd_smoothed, 99)
     tl_pd_low = np.percentile(tl_pd_smoothed, 1)
+    tl_pd_on_off_ratio = (tl_pd_high - tl_pd_low) / tl_pd_low
+    if tl_pd_on_off_ratio > 10:
+        tl_pd_valid = True
+    else:
+        tl_pd_valid = False
+
     tl_pd_threshold = tl_pd_low + ((tl_pd_high - tl_pd_low)/2)
     tl_pd_thresholded = np.squeeze(tl_pd_smoothed > tl_pd_threshold).astype(int)
     # Detect both rising and falling edges
     tl_pd_thresholded_diff = np.abs(np.diff(tl_pd_thresholded))
     flip_times_pd_tl = np.squeeze(tl_time[np.where(tl_pd_thresholded_diff == 1)])
 
-    # compare bv and tl flip time intervals
-    harp_flip_intervals = np.diff(flip_times_harp)
-    bv_flip_intervals = np.diff(flip_times_bv_bv)
-    tl_flip_intervals = np.diff(flip_times_pd_tl)
+    # Find TL times when BV Digital flips
+    tl_bv_ch = np.where(np.isin(tl_chNames, 'Bonvision'))
+    tl_bv = np.squeeze(tl_daqData[:, tl_bv_ch])
+    # Needs to be smoothed because the photodiode signal is noisy and monitor blanking can further screw it up
+    # There should also be a RC filter in the photodiode signal path to smooth high frequency noise
+    tl_bv_smoothed = pd.Series(tl_bv).rolling(window=20, min_periods=1).mean().values
+    # Calculate threshold for PD signal
+    tl_bv_high = np.percentile(tl_bv_smoothed, 99)
+    tl_bv_low = np.percentile(tl_bv_smoothed, 1)
+    tl_bv_threshold = tl_bv_low + ((tl_bv_high - tl_bv_low)/2)
+    tl_bv_thresholded = np.squeeze(tl_bv_smoothed > tl_bv_threshold).astype(int)
+    # Detect both rising and falling edges
+    tl_bv_thresholded_diff = np.abs(np.diff(tl_bv_thresholded))
+    flip_times_bv_tl = np.squeeze(tl_time[np.where(tl_bv_thresholded_diff == 1)])
 
-    # Check all systems registered the same number of pulses
-    if len(flip_times_harp) == len(flip_times_bv_bv) == len(flip_times_pd_tl):
-        print ('Pulse count matches accross TL/BV/Harp')
-        print ('Pulse count = ' + str(len(flip_times_harp)))
+
+    # in experiments with screens off there is no PD signal and thus no flips and 
+    # can not therefore convert from TL time to Harp time. In these cases the
+    # the encoder data is not retrievable from the harp data file in the usual way
+    # and we thus use the BV encoder data
+    if tl_pd_valid == True and harp_pd_valid == True:
+        print('Both TL and Harp PD signals are valid')
+        pd_valid = True
     else:
-        print('Harp pulses = ' + str(len(flip_times_harp)))
-        print('BV pulses = ' + str(len(flip_times_bv_bv)))
-        print('TL pulses = ' + str(len(flip_times_pd_tl)))
-        raise ValueError('Pulse count mismatch')
+        print('*** Warning: One or both of the PD signals are invalid. If this is an experiment with screens off this is expected. If not, there is a problem. ***')
+        pd_valid = False
 
+    # Use the BV ground truth for the number of flips that should be present
+    true_flips = len(flip_times_bv_bv)
+    # Fit model to convert BV time to TL time either using PD or digital flip signal from BV
+    if pd_valid:
+        # use PD
+        linear_interpolator_bv_2_tl = interp1d(flip_times_bv_bv[0:true_flips], flip_times_pd_tl[0:true_flips], kind='linear', fill_value="extrapolate")
+    else:
+        # use digital signal
+        linear_interpolator_bv_2_tl = interp1d(flip_times_bv_bv[0:true_flips], flip_times_bv_tl[0:true_flips], kind='linear', fill_value="extrapolate")
+                                               
+    if pd_valid:
+        # Fit model to convert Harp time to TL time
+        linear_interpolator_harp_2_tl = interp1d(flip_times_harp[0:true_flips], flip_times_pd_tl[0:true_flips], kind='linear', fill_value="extrapolate")
+        # Detect harp flips which occur after the last TL flip in TL time, this is because these have been observed sometimes
+        # last valid flip time in TL time
+        harp_last_valid_flip_time = flip_times_pd_tl[-1]
+        # detect how many flips are after this time
+        flip_times_harp_to_tl = linear_interpolator_harp_2_tl(flip_times_harp)
+        harp_invalid_flips = np.where(flip_times_harp_to_tl > harp_last_valid_flip_time)[0]
+        if len(harp_invalid_flips) > 0:
+            print('**** WARNING ****')   
+            print(f'Number of harp flips after last valid TL flip: {len(harp_invalid_flips)}')
+            print('Please inform Adam of this!')
+        flip_times_harp_invalid_subtracted = flip_times_harp[0:flip_times_harp.size-len(harp_invalid_flips)]
 
-    # Fit model to convert BV time to TL time
-    linear_interpolator_bv_2_tl = interp1d(flip_times_bv_bv, flip_times_pd_tl, kind='linear', fill_value="extrapolate")
-    # Fit model to convert Harp time to TL time
-    linear_interpolator_harp_2_tl = interp1d(flip_times_harp, flip_times_pd_tl, kind='linear', fill_value="extrapolate")
-
+        # Check all systems registered the same number of pulses
+        if len(flip_times_harp) == len(flip_times_bv_bv) == len(flip_times_pd_tl):
+            print ('Pulse count matches accross TL/BV/Harp')
+            print ('Pulse count = ' + str(len(flip_times_harp)))
+        elif len(flip_times_harp_invalid_subtracted) == len(flip_times_bv_bv) == len(flip_times_pd_tl):
+            print ('Pulse count matches accross TL/BV/Harp after removing invalid harp pulses')
+            print ('Pulse count = ' + str(len(flip_times_harp)))
+        else:
+            print('Harp pulses = ' + str(len(flip_times_harp)))
+            print('BV pulses = ' + str(len(flip_times_bv_bv)))
+            print('TL pulses = ' + str(len(flip_times_pd_tl)))
+            raise ValueError('Pulse count mismatch')
+    else:
+        # Check all systems registered the same number of pulses
+        if len(flip_times_bv_bv) == len(flip_times_bv_tl):
+            print ('Pulse count matches accross TL/BV')
+            print ('Pulse count = ' + str(len(flip_times_bv_bv)))
+        else:
+            print('BV pulses = ' + str(len(flip_times_bv_bv)))
+            print('TL pulses = ' + str(len(flip_times_bv_tl)))
+            raise ValueError('Pulse count mismatch')        
+    
     # get trial onset times
     # in BV time
     # find the moments when the (bonsai) trial number increments
@@ -132,14 +198,22 @@ def run_preprocess_bv2(userID, expID):
     trialTimeMatrix = np.column_stack((trialOnsetTimesBV_tl, stim_order.values))
 
     # Add running trace
-    wheel_pos = harp_encoder
+    if pd_valid:
+        # then we can use harp for encoder
+        wheel_pos = harp_encoder
+        wheel_timestamps = linear_interpolator_harp_2_tl(harp_time)
+    else:
+        # we use BV for encoder
+        wheel_pos = bv_encoder['Encoder'].values
+        wheel_timestamps = linear_interpolator_bv_2_tl(bv_encoder['Timestamp'].values)
+
     # deal with wrap around of rotary encoder position
     wheel_pos_dif = np.diff(wheel_pos)
     wheel_pos_dif[wheel_pos_dif > 50000] -= 2**16
     wheel_pos_dif[wheel_pos_dif < -50000] += 2**16
     wheel_pos = np.cumsum(wheel_pos_dif)
     wheel_pos = np.append(wheel_pos,wheel_pos[-1])
-    wheel_timestamps = linear_interpolator_harp_2_tl(harp_time)
+    
     # Resample wheel to 20Hz
     resample_freq = 20
     wheel_linear_timescale = np.arange(0, np.floor(wheel_timestamps[-1]), 1/resample_freq)
@@ -170,7 +244,6 @@ def run_preprocess_bv2(userID, expID):
     wheel['t'] = np.array(wheel_linear_timescale)
     with open(os.path.join(exp_dir_processed_recordings, 'wheel.pickle'), 'wb') as f: pickle.dump(wheel, f)
 
-
     # output a csv file which contains dataframe of all trials with first column showing trial onset time
     # read the all trials file, append trial onset times to first column (trialOnsetTimesTL)
     all_trials = pd.read_csv(os.path.join(exp_dir_raw, expID + '_all_trials.csv'))
@@ -181,8 +254,8 @@ def run_preprocess_bv2(userID, expID):
     # for debugging:
 def main():
     # userID = 'melinatimplalexi'
-    userID = 'adamranson'
-    expID = '2025-02-25_02_ESMT206'
+    userID = 'melinatimplalexi'
+    expID = '2025-03-05_10_ESMT201'
     run_preprocess_bv2(userID, expID)
 
 if __name__ == "__main__":

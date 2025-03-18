@@ -23,7 +23,9 @@ def bv_timing_bug2(userID, expID,plot_on):
     data_read_np = np.array(data_read)
     data_read_np[0:400,0] = data_read_np[400,0]
     harp_pd = data_read_np[:,0]
+    harp_encoder = data_read_np[:,1]
     harp_pd_time = np.arange(0, len(harp_pd)/1000, 1/1000)
+
 
     # load timeline
     Timeline = loadmat(os.path.join(exp_dir_raw, expID + '_Timeline.mat'))
@@ -46,7 +48,8 @@ def bv_timing_bug2(userID, expID,plot_on):
     # load bonsai data
     frame_events = pd.read_csv(os.path.join(exp_dir_raw, expID + '_FrameEvents.csv'), names=['Frame', 'Timestamp', 'Sync', 'Trial'],
                             header=None, skiprows=[0], dtype={'Frame':np.float32, 'Timestamp':np.float32, 'Sync':np.float32, 'Trial':np.float32})
-
+    bv_encoder = pd.read_csv(os.path.join(exp_dir_raw, expID + '_Encoder.csv'), names=['Frame', 'Timestamp', 'Unknown', 'Encoder'],
+                            header=None, skiprows=[0], dtype={'Frame':np.float32, 'Timestamp':np.float32, 'Unknown':np.float32, 'Encoder':np.float32})
     # plt.figure()
     # plt.plot(harp_pd_time+13.35,harp_pd/max(harp_pd),label='Harp PD',color='r')
     # plt.plot(tl_time,tl_pd/max(tl_pd),label='TL PD',color='b')
@@ -59,7 +62,8 @@ def bv_timing_bug2(userID, expID,plot_on):
     #  Threshold the Harp PD signal and detect flips
     harp_pd_smoothed = pd.Series(harp_pd).rolling(window=20, min_periods=1).mean().values
     harp_pd_high = np.percentile(harp_pd_smoothed, 99)
-    harp_pd_low = np.percentile(harp_pd_smoothed, 1)   
+    harp_pd_low = np.percentile(harp_pd_smoothed, 1)  
+    harp_pd_on_off_ratio = (harp_pd_high - harp_pd_low) / harp_pd_low 
     harp_pd_threshold = harp_pd_low + ((harp_pd_high - harp_pd_low)*0.7)
      
     harp_pd_thresholded = np.where(harp_pd_smoothed < harp_pd_threshold, 0, 1)
@@ -70,6 +74,7 @@ def bv_timing_bug2(userID, expID,plot_on):
     # Find BV times of flips
     Timestamp = frame_events['Timestamp'].values
     Sync = frame_events['Sync'].values
+    Encoder = bv_encoder['Encoder'].values
     Trial = frame_events['Trial']
     Frame = frame_events['Frame']
     bv_diff = np.abs(np.diff(Sync))
@@ -82,6 +87,9 @@ def bv_timing_bug2(userID, expID,plot_on):
     tl_pd_smoothed = pd.Series(tl_pd).rolling(window=20, min_periods=1).mean().values
     tl_pd_high = np.percentile(tl_pd_smoothed, 99)
     tl_pd_low = np.percentile(tl_pd_smoothed, 1)
+    # check high vs low is > a certain percentage change
+    tl_pd_on_off_ratio = (tl_pd_high - tl_pd_low) / tl_pd_low
+
     tl_pd_threshold = tl_pd_low + ((tl_pd_high - tl_pd_low)/2)
     tl_pd_thresholded = np.squeeze(tl_pd_smoothed > tl_pd_threshold).astype(int)
     # Set PD signal before first digital flip to value at time of first digital flip
@@ -151,6 +159,18 @@ def bv_timing_bug2(userID, expID,plot_on):
     print(f'TL PD pulses        =  : {len(flip_times_pd_tl)}')
     print(f'TL digital pulses   =  : {len(flip_times_dig_tl)}')
 
+    # plot harp and TL PD signals aligned to first flip
+    first_sample_tl = np.where(tl_time>flip_times_pd_tl[0])[0][0]
+    first_sample_harp = np.where(harp_pd_time>flip_times_harp[0])[0][0]
+    plt.figure()
+    spacing = 40
+    samples_to_plot = np.arange(first_sample_tl,len(tl_pd_smoothed),spacing)
+    plt.plot((samples_to_plot-samples_to_plot[0])*spacing,tl_pd_smoothed[samples_to_plot]/np.max(tl_pd_smoothed),label='TL PD')
+    samples_to_plot = np.arange(first_sample_harp,len(harp_pd_smoothed),spacing)
+    plt.plot((samples_to_plot-samples_to_plot[0])*spacing,harp_pd_smoothed[samples_to_plot]/np.max(harp_pd_smoothed),label='Harp PD')
+    plt.legend()
+
+
     # TL vs BV drift as a function of TL time
     # TL_BV_pulse_time_diff = (flip_times_dig_tl[0:min_pulses-1]-flip_times_dig_tl[0]) - (flip_times_bv[0:min_pulses-1]-flip_times_bv[0])
 
@@ -190,7 +210,22 @@ def bv_timing_bug2(userID, expID,plot_on):
     linear_interpolator_harp_2_tl = interp1d(flip_times_harp[:min_pulses], flip_times_pd_tl[:min_pulses], kind='linear', fill_value="extrapolate")
     harp_timestamp_tl = linear_interpolator_harp_2_tl(harp_pd_time)     # harp timestamps in TL timebase
     # //////////////////////////////////////
+
+    # Detect harp flips which occur after the last TL flip in TL time
+    # last valid flip time in TL time
+    harp_last_valid_flip_time = flip_times_pd_tl[-1]
+    # detect how many flips are after this time
+    flip_times_harp_to_tl = linear_interpolator_harp_2_tl(flip_times_harp)
+    harp_last_flip_invalid_flips = np.where(flip_times_harp_to_tl > harp_last_valid_flip_time)[0]
+    print(f'Number of harp flips after last valid TL flip: {len(harp_last_flip_invalid_flips)}')
+
     # Plotting  
+    plt.figure()
+    plt.plot(bv_timestamp_2_tl,Encoder)
+    plt.plot(harp_timestamp_tl,harp_encoder)
+    plt.legend(['BV', 'Harp'])
+    plt.show()
+    
 
     if plot_on:
         plt.figure()
