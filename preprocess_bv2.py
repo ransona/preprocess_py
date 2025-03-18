@@ -120,6 +120,12 @@ def run_preprocess_bv2(userID, expID):
         pd_valid = True
     else:
         print('*** Warning: One or both of the PD signals are invalid. If this is an experiment with screens off this is expected. If not, there is a problem. ***')
+        choice = input("Do you want to continue? (y/n): ").strip().lower()
+        
+        if choice != 'y':
+            print("Exiting...")
+            return
+        
         pd_valid = False
 
     # Use the BV ground truth for the number of flips that should be present
@@ -145,6 +151,10 @@ def run_preprocess_bv2(userID, expID):
             print('**** WARNING ****')   
             print(f'Number of harp flips after last valid TL flip: {len(harp_invalid_flips)}')
             print('Please inform Adam of this!')
+            choice = input("Do you want to continue? (y/n): ").strip().lower()
+            if choice != 'y':
+                print("Exiting...")
+                return            
         flip_times_harp_invalid_subtracted = flip_times_harp[0:flip_times_harp.size-len(harp_invalid_flips)]
 
         # Check all systems registered the same number of pulses
@@ -254,8 +264,8 @@ def run_preprocess_bv2(userID, expID):
     # for debugging:
 def main():
     # userID = 'melinatimplalexi'
-    userID = 'melinatimplalexi'
-    expID = '2025-03-05_10_ESMT201'
+    userID = 'pmateosaparicio'
+    expID = '2025-03-13_02_ESPM126'
     run_preprocess_bv2(userID, expID)
 
 if __name__ == "__main__":
