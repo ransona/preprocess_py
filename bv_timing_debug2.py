@@ -57,14 +57,14 @@ def bv_timing_bug2(userID, expID,plot_on):
     # plt.show(block=False) 
 
     # /////////////// DETECTING TIMING PULSES ///////////////
-
+    PD_smoothing_window = 20
     # Find Harp times when PD flip
     #  Threshold the Harp PD signal and detect flips
-    harp_pd_smoothed = pd.Series(harp_pd).rolling(window=20, min_periods=1).mean().values
+    harp_pd_smoothed = pd.Series(harp_pd).rolling(window=PD_smoothing_window, min_periods=1).mean().values
     harp_pd_high = np.percentile(harp_pd_smoothed, 99)
     harp_pd_low = np.percentile(harp_pd_smoothed, 1)  
     harp_pd_on_off_ratio = (harp_pd_high - harp_pd_low) / harp_pd_low 
-    harp_pd_threshold = harp_pd_low + ((harp_pd_high - harp_pd_low)*0.7)
+    harp_pd_threshold = harp_pd_low + ((harp_pd_high - harp_pd_low)*0.5)
      
     harp_pd_thresholded = np.where(harp_pd_smoothed < harp_pd_threshold, 0, 1)
     transitions = np.diff(harp_pd_thresholded)
@@ -84,13 +84,13 @@ def bv_timing_bug2(userID, expID,plot_on):
 
     # Find TL times when pd flips
     # smooth PD trace
-    tl_pd_smoothed = pd.Series(tl_pd).rolling(window=20, min_periods=1).mean().values
+    tl_pd_smoothed = pd.Series(tl_pd).rolling(window=PD_smoothing_window, min_periods=1).mean().values
     tl_pd_high = np.percentile(tl_pd_smoothed, 99)
     tl_pd_low = np.percentile(tl_pd_smoothed, 1)
     # check high vs low is > a certain percentage change
     tl_pd_on_off_ratio = (tl_pd_high - tl_pd_low) / tl_pd_low
 
-    tl_pd_threshold = tl_pd_low + ((tl_pd_high - tl_pd_low)/2)
+    tl_pd_threshold = tl_pd_low + ((tl_pd_high - tl_pd_low)*0.5)
     tl_pd_thresholded = np.squeeze(tl_pd_smoothed > tl_pd_threshold).astype(int)
     # Set PD signal before first digital flip to value at time of first digital flip
     # tl_pd_thresholded[0:flip_samples_dig_tl[0]] = tl_pd_thresholded[flip_samples_dig_tl[0]]
@@ -98,7 +98,7 @@ def bv_timing_bug2(userID, expID,plot_on):
     flip_times_pd_tl = np.squeeze(tl_time[np.where(tl_pd_thresholded_diff == 1)])
 
     # Find lengths of high-low trail start pulses
-    tl_pd2_smoothed = pd.Series(tl_pd2).rolling(window=30, min_periods=1).mean().values
+    tl_pd2_smoothed = pd.Series(tl_pd2).rolling(window=PD_smoothing_window, min_periods=1).mean().values
     tl_pd2_high = 0.3
     tl_pd2_low = 0.1
     tl_pd2_threshold = tl_pd2_low + ((tl_pd2_high - tl_pd2_low)/2)
@@ -114,19 +114,16 @@ def bv_timing_bug2(userID, expID,plot_on):
     all_low_pulse_widths = np.diff(np.where(np.abs(np.diff(all_low_pulses)))[0])
     all_low_pulse_widths = all_low_pulse_widths[all_low_pulse_widths < 5000]
     # plot histogram of pulse widths in 2 subplots
-    plt.figure()
-    plt.subplot(2,1,1)
-    plt.hist(all_high_pulse_widths,bins=np.arange(400,500,5))
-    plt.xlim([400,500])
-    plt.title('High pulse widths')
-    plt.subplot(2,1,2)
-    plt.hist(all_low_pulse_widths,bins=np.arange(400,500,5))
-    plt.xlim([400,500])
-    plt.title('Low pulse widths')
-    plt.show()
-
-        
-    
+    # plt.figure()
+    # plt.subplot(2,1,1)
+    # plt.hist(all_high_pulse_widths,bins=np.arange(400,500,5))
+    # plt.xlim([400,500])
+    # plt.title('High pulse widths')
+    # plt.subplot(2,1,2)
+    # plt.hist(all_low_pulse_widths,bins=np.arange(400,500,5))
+    # plt.xlim([400,500])
+    # plt.title('Low pulse widths')
+    # plt.show()
 
     # Find TL times when digital flips
     # REMOVE ONCE BV DIGITAL SIGNAL IS WORKING
@@ -137,8 +134,6 @@ def bv_timing_bug2(userID, expID,plot_on):
     tl_dig_thresholded_diff = np.abs(np.diff(tl_dig_thresholded))
     flip_samples_dig_tl = np.where(tl_dig_thresholded_diff == 1)[0]
     flip_times_dig_tl = np.squeeze(tl_time[np.where(tl_dig_thresholded_diff == 1)])
-
-
 
     # plt.plot(tl_dig_thresholded,color='k')
     # plt.plot(tl_pd_thresholded,color='r')
@@ -151,6 +146,43 @@ def bv_timing_bug2(userID, expID,plot_on):
     # add in first trial onset
     trialOnsetTimesBV = np.insert(trialOnsetTimesBV,0,Timestamp[0]) 
 
+    # plot harp vs tl timing pulse times relative to first pulse
+    # min_pulses = min(len(flip_times_bv),len(flip_times_pd_tl),len(flip_times_harp))
+    # plt.figure()
+    # plt.plot((flip_times_pd_tl[0:min_pulses]-flip_times_pd_tl[0])-(flip_times_harp[0:min_pulses]-flip_times_harp[0]),label='TL PD')
+    # plt.show(block=False)
+
+    filter_flips = True
+
+    if filter_flips:
+        print('Pre filtering:')
+        print(f'BV pulses           =  : {len(flip_times_bv)}')
+        print(f'Harp PD pulses      =  : {len(flip_times_harp)}')
+        print(f'TL PD pulses        =  : {len(flip_times_pd_tl)}')
+        print(f'TL digital pulses   =  : {len(flip_times_dig_tl)}')        
+        # min_pulses_unfiltered = min(len(flip_times_bv),len(flip_times_pd_tl),len(flip_times_harp))
+        # pulse_time_diff_tl_bv_unfiltered = (flip_times_pd_tl[0:min_pulses]-flip_times_pd_tl[0])-(flip_times_dig_tl[0:min_pulses]-flip_times_dig_tl[0])
+        # remove all pulses of < a certain width in tl/harp time
+        min_width = 0.240
+        max_width = 0.5
+        # all_diff = np.diff(flip_times_pd_tl)
+        # all_diff = all_diff[all_diff < 1]
+        flip_times_pd_tl_filtered = flip_times_pd_tl[np.where((np.diff(flip_times_pd_tl) > min_width) & (np.diff(flip_times_pd_tl) < max_width))[0]]
+        flip_times_harp_filtered = flip_times_harp[np.where((np.diff(flip_times_harp) > min_width) & (np.diff(flip_times_harp) < max_width))[0]]
+        flip_times_dig_tl_filtered = flip_times_dig_tl[np.where((np.diff(flip_times_dig_tl) > min_width) & (np.diff(flip_times_dig_tl) < max_width))[0]]
+        flips_to_keep_bv = np.where((np.diff(flip_times_dig_tl) > min_width) & (np.diff(flip_times_dig_tl) < max_width))[0]
+
+        # flip_times_harp_filtered = flip_times_harp[np.where(np.diff(flip_times_harp) > min_width)[0]]
+        # flip_times_dig_tl_filtered = flip_times_dig_tl[np.where(np.diff(flip_times_dig_tl) > min_width)[0]]
+        # flips_to_keep_bv = np.where(np.diff(flip_times_dig_tl) > min_width)[0]
+        
+        flip_times_bv = flip_times_bv[flips_to_keep_bv]
+        flip_times_harp = flip_times_harp_filtered
+        flip_times_pd_tl = flip_times_pd_tl_filtered
+        flip_times_dig_tl = flip_times_dig_tl_filtered
+
+        # do sanity check to see if stochastic variation in pulse width is correlated between signals
+        print('Post filtering:')
 
     min_pulses = min(len(flip_times_bv),len(flip_times_pd_tl),len(flip_times_harp))
 
@@ -158,18 +190,31 @@ def bv_timing_bug2(userID, expID,plot_on):
     print(f'Harp PD pulses      =  : {len(flip_times_harp)}')
     print(f'TL PD pulses        =  : {len(flip_times_pd_tl)}')
     print(f'TL digital pulses   =  : {len(flip_times_dig_tl)}')
+    # plot TL PD and TL Digital signals aligned to first flip
 
+    
     # plot harp and TL PD signals aligned to first flip
     first_sample_tl = np.where(tl_time>flip_times_pd_tl[0])[0][0]
     first_sample_harp = np.where(harp_pd_time>flip_times_harp[0])[0][0]
+    first_sample_tl_dig = np.where(tl_time>flip_times_dig_tl[0])[0][0]
     plt.figure()
-    spacing = 40
+    spacing = 1
+    # time axis is samples
     samples_to_plot = np.arange(first_sample_tl,len(tl_pd_smoothed),spacing)
-    plt.plot((samples_to_plot-samples_to_plot[0])*spacing,tl_pd_smoothed[samples_to_plot]/np.max(tl_pd_smoothed),label='TL PD')
+    plt.plot((samples_to_plot-samples_to_plot[0]),tl_pd_smoothed[samples_to_plot]/np.max(tl_pd_smoothed),label='TL PD')
+    plt.plot((samples_to_plot-samples_to_plot[0]),tl_dig_thresholded[samples_to_plot]/np.max(tl_pd_smoothed),label='TL BV')
     samples_to_plot = np.arange(first_sample_harp,len(harp_pd_smoothed),spacing)
-    plt.plot((samples_to_plot-samples_to_plot[0])*spacing,harp_pd_smoothed[samples_to_plot]/np.max(harp_pd_smoothed),label='Harp PD')
+    plt.plot((samples_to_plot-samples_to_plot[0]),harp_pd_smoothed[samples_to_plot]/np.max(harp_pd_smoothed),label='Harp PD')
+    # over this plot the pulse time differences
+    pulse_time_diff_tl_harp = (flip_times_pd_tl[0:min_pulses]-flip_times_pd_tl[0])-(flip_times_harp[0:min_pulses]-flip_times_harp[0])
+    pulse_time_diff_tl_bv = (flip_times_pd_tl[0:min_pulses]-flip_times_pd_tl[0])-(flip_times_dig_tl[0:min_pulses]-flip_times_dig_tl[0])
+    # plt.plot((flip_times_pd_tl[0:min_pulses]-flip_times_pd_tl[0])*1000,pulse_time_diff_tl_harp,label='TL PD - Harp')
+    # plt.plot((flip_times_pd_tl[0:min_pulses]-flip_times_pd_tl[0])*1000,pulse_time_diff_tl_bv,label='TL PD - BV Electric')
+    # plt.plot((flip_times_pd_tl[0:min_pulses_unfiltered]-flip_times_pd_tl[0])*1000,pulse_time_diff_tl_bv_unfiltered,label='TL PD - BV Electric - unfiltered')
+    
+    plt.plot((flip_times_pd_tl[0:min_pulses]-flip_times_pd_tl[0])*1000,pulse_time_diff_tl_bv,label='TL PD - BV Electric')
     plt.legend()
-
+    plt.show()
 
     # TL vs BV drift as a function of TL time
     # TL_BV_pulse_time_diff = (flip_times_dig_tl[0:min_pulses-1]-flip_times_dig_tl[0]) - (flip_times_bv[0:min_pulses-1]-flip_times_bv[0])
@@ -309,38 +354,14 @@ def bv_timing_bug2(userID, expID,plot_on):
 
     # for debugging:
 def main():
-    userID = 'pmateosaparicio'
-    # 2024-10-01_03_ESPM113 Drift in offset / hour = -996.2737655984166
-    # 2024-10-02_01_ESPM113 Drift in offset / hour = -1067.8224571722203
-    # 2024-10-04_01_ESPM113 
-    # 2024-10-07_01_ESPM113 
-    # 2024-10-08_01_ESPM113 
-    # 2024-10-09_01_ESPM113 
-    # 2024-10-12_02_ESPM113 
-    # 2024-10-14_02_ESPM113 
-    # 2024-10-17_01_ESPM113 
-    # 2024-11-07_02_ESPM113 
-    # 2024-11-08_02_ESPM115  
-    # 2024-11-11_01_ESPM115 
-    # 2024-11-12_01_ESPM115 
-    # 2024-11-21_01_ESPM118 
-    # 2024-11-27_01_ESPM118 
-    # 2024-11-28_01_ESPM118 
-    # 2024-12-05_01_ESPM117 
-
-    allExp = ['2024-10-01_03_ESPM113','2024-10-02_01_ESPM113','2024-10-04_01_ESPM113','2024-10-07_01_ESPM113'
-              ,'2024-10-08_01_ESPM113','2024-10-09_01_ESPM113','2024-10-12_02_ESPM113','2024-10-14_02_ESPM113'
-              ,'2024-10-17_01_ESPM113','2024-11-07_02_ESPM113','2024-11-08_02_ESPM115','2024-11-11_01_ESPM115'
-              ,'2024-11-12_01_ESPM115','2024-11-21_01_ESPM118','2024-11-27_01_ESPM118','2024-11-28_01_ESPM118'
-              ,'2024-12-05_01_ESPM117']
-    
-    # 2024-12-10_01_ESPM118
-    # 2024-12-10_02_ESPM118
-    # allExp = ['2024-12-10_01_ESPM118','2024-12-10_02_ESPM118']
-
-    allExp = ['2025-01-16_01_YBBT002']
-    allExp = ['2025-01-16_01_YBBT002']
-    allExp = ['2025-02-26_02_ESPM126']
+    userID = 'adamranson'
+    #allExp = ['2025-03-12_01_ESPM126']
+    # allExp = ['2025-03-13_02_ESPM126'] # has 6 extra harp flips
+    #allExp = ['2025-03-27_09_ESPM126'] # has no issues
+    #allExp = ['2025-03-21_02_TEST'] # new setup 1 hr recording
+    #allExp = ['2025-03-26_01_ESPM126'] # has a fast BV flip that is missed in PD
+    #allExp = ['2025-02-26_02_ESPM126'] # has no issues
+    allExp = ['2025-03-05_02_ESMT204'] # stim artifact
     for expID in allExp:
         drift = bv_timing_bug2(userID, expID,plot_on=True)
         print(expID + ', ' + str(drift))

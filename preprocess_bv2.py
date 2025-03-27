@@ -12,6 +12,14 @@ import harp
 
 def run_preprocess_bv2(userID, expID):
     print('Starting run_preprocess_bv...')
+    # filter_timing_pulses = True allows removal of timing pulses with duration < min_pulse_width
+    # this is used to deal with random fast alterations that bonsai still sometimes produces
+    # which can be detected in the electrical signal but not in the photodiode necessarily
+    # we therefore remove flips of < min_pulse_width duration
+    filter_flips = True
+    min_pulse_width = 0.240 # seconds
+    max_pulse_width = 0.5 # seconds 
+
     animalID, remote_repository_root, \
     processed_root, exp_dir_processed, \
         exp_dir_raw = organise_paths.find_paths(userID, expID)
@@ -57,8 +65,9 @@ def run_preprocess_bv2(userID, expID):
     if harp_pd_on_off_ratio > 10:
         harp_pd_valid = True  
     else:
-        harp_pd_valid = False          
-    harp_pd_threshold = harp_pd_low + ((harp_pd_high - harp_pd_low)*0.7)
+        harp_pd_valid = False   
+
+    harp_pd_threshold = harp_pd_low + ((harp_pd_high - harp_pd_low)*0.5)
     harp_pd_thresholded = np.where(harp_pd_smoothed < harp_pd_threshold, 0, 1)
     transitions = np.diff(harp_pd_thresholded)
     flip_samples = np.where(transitions != 0)[0]
@@ -84,12 +93,13 @@ def run_preprocess_bv2(userID, expID):
     tl_pd_high = np.percentile(tl_pd_smoothed, 99)
     tl_pd_low = np.percentile(tl_pd_smoothed, 1)
     tl_pd_on_off_ratio = (tl_pd_high - tl_pd_low) / tl_pd_low
+
     if tl_pd_on_off_ratio > 10:
         tl_pd_valid = True
     else:
         tl_pd_valid = False
 
-    tl_pd_threshold = tl_pd_low + ((tl_pd_high - tl_pd_low)/2)
+    tl_pd_threshold = tl_pd_low + ((tl_pd_high - tl_pd_low)*0.5)
     tl_pd_thresholded = np.squeeze(tl_pd_smoothed > tl_pd_threshold).astype(int)
     # Detect both rising and falling edges
     tl_pd_thresholded_diff = np.abs(np.diff(tl_pd_thresholded))
@@ -100,7 +110,7 @@ def run_preprocess_bv2(userID, expID):
     tl_bv = np.squeeze(tl_daqData[:, tl_bv_ch])
     # Needs to be smoothed because the photodiode signal is noisy and monitor blanking can further screw it up
     # There should also be a RC filter in the photodiode signal path to smooth high frequency noise
-    tl_bv_smoothed = pd.Series(tl_bv).rolling(window=20, min_periods=1).mean().values
+    tl_bv_smoothed = pd.Series(tl_bv).rolling(window=1, min_periods=1).mean().values
     # Calculate threshold for PD signal
     tl_bv_high = np.percentile(tl_bv_smoothed, 99)
     tl_bv_low = np.percentile(tl_bv_smoothed, 1)
@@ -109,7 +119,6 @@ def run_preprocess_bv2(userID, expID):
     # Detect both rising and falling edges
     tl_bv_thresholded_diff = np.abs(np.diff(tl_bv_thresholded))
     flip_times_bv_tl = np.squeeze(tl_time[np.where(tl_bv_thresholded_diff == 1)])
-
 
     # in experiments with screens off there is no PD signal and thus no flips and 
     # can not therefore convert from TL time to Harp time. In these cases the
@@ -128,8 +137,93 @@ def run_preprocess_bv2(userID, expID):
         
         pd_valid = False
 
+    if filter_flips:
+        min_pulses_unfiltered = min(len(flip_times_bv_bv),len(flip_times_pd_tl),len(flip_times_harp))
+        # before filtering check status
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        print('Before filtering timing signal:')
+        if len({len(flip_times_pd_tl),len(flip_times_harp),len(flip_times_bv_tl),len(flip_times_bv_bv)}) != 1:
+            print('Number of flips detected in TL, BV and Harp do not match:')
+            print('TL PD flips = ' + str(len(flip_times_pd_tl)))
+            print('BV TL flips = ' + str(len(flip_times_bv_tl)))
+            print('BV flips = ' + str(len(flip_times_bv_bv)))
+            print('Harp flips = ' + str(len(flip_times_harp)))
+        
+        pulse_time_diff_tl_bv_unfiltered = (flip_times_pd_tl[0:min_pulses_unfiltered]-flip_times_pd_tl[0])-(flip_times_bv_tl[0:min_pulses_unfiltered]-flip_times_bv_tl[0])
+        # remove all pulses of < a certain width in tl/harp time
+
+        # all_diff = np.diff(flip_times_pd_tl)
+        # all_diff = all_diff[all_diff < 1]
+        flip_times_pd_tl_filtered = flip_times_pd_tl[np.where((np.diff(flip_times_pd_tl) > min_pulse_width) & (np.diff(flip_times_pd_tl) < max_pulse_width))[0]]
+        flip_times_harp_filtered = flip_times_harp[np.where((np.diff(flip_times_harp) > min_pulse_width) & (np.diff(flip_times_harp) < max_pulse_width))[0]]
+        flip_times_dig_tl_filtered = flip_times_bv_tl[np.where((np.diff(flip_times_bv_tl) > min_pulse_width) & (np.diff(flip_times_bv_tl) < max_pulse_width))[0]]
+        flips_to_keep_bv = np.where((np.diff(flip_times_bv_tl) > min_pulse_width) & (np.diff(flip_times_bv_tl) < max_pulse_width))[0]
+
+        # flip_times_harp_filtered = flip_times_harp[np.where(np.diff(flip_times_harp) > min_width)[0]]
+        # flip_times_dig_tl_filtered = flip_times_dig_tl[np.where(np.diff(flip_times_dig_tl) > min_width)[0]]
+        # flips_to_keep_bv = np.where(np.diff(flip_times_dig_tl) > min_width)[0]
+        
+        flip_times_bv_bv = flip_times_bv_bv[flips_to_keep_bv]
+        flip_times_harp = flip_times_harp_filtered
+        flip_times_pd_tl = flip_times_pd_tl_filtered
+        flip_times_bv_tl = flip_times_dig_tl_filtered
+
+        # do sanity checks
+        print('')
+        print('After filtering timing signal:')
+        if pd_valid:
+            # number of flips should be the same on all systems if PD is valid
+            if (len({len(flip_times_harp),len(flip_times_bv_bv)}) != 1) and (len({len(flip_times_pd_tl),len(flip_times_bv_tl),len(flip_times_bv_bv)}) == 1):
+                # harp flip count is wrong but others are rigth so can still use BV data for encoder
+                print('Number of flips detected in Harp and BV do not match after filtering both other timing pulses do match. You may thus continue by using rotary encoder data from BV log instead of harp:')
+                print('Harp flips = ' + str(len(flip_times_harp)))
+                print('BV flips = ' + str(len(flip_times_bv_bv)))
+                print('This issue should not occur on data acquired after 25/03/2025 - please contact AR if you see this issue on data after this date.')
+                choice = input("Do you want to continue? (y/n): ").strip().lower()
+                if choice != 'y':
+                    print("Exiting...")
+                    return
+                # else set to not use PD and thus not use Harp for encoder
+                pd_valid = False                
+            elif len({len(flip_times_pd_tl),len(flip_times_harp),len(flip_times_bv_tl),len(flip_times_bv_bv)}) != 1:
+                print('Number of flips detected in TL, BV and Harp do not match:')
+                print('TL PD flips = ' + str(len(flip_times_pd_tl)))
+                print('BV TL flips = ' + str(len(flip_times_bv_tl)))
+                print('BV flips = ' + str(len(flip_times_bv_bv)))
+                print('Harp flips = ' + str(len(flip_times_harp)))
+                raise ValueError('Pulse count mismatch')
+            else:
+                print('Number of flips detected in TL, BV and Harp match:')
+                print('BV flips = ' + str(len(flip_times_bv_tl)))
+            # the relative times of flips should be near identical between flip_times_pd_tl and flip_times_bv_tl
+            pd_tl_v_bv_tl_jitter = np.abs((flip_times_pd_tl-flip_times_pd_tl[0]) - (flip_times_bv_tl-flip_times_bv_tl[0]))
+            if max(pd_tl_v_bv_tl_jitter) > 50:
+                print('Jitter between TL and BV timing pulses is too large:')
+                print('Max jitter = ' + str(round(max(pd_tl_v_bv_tl_jitter)*1000)) + ' ms')
+                raise ValueError('Jitter mismatch')
+            else:
+                print('Jitter between TL and BV timing pulses is acceptable:')
+                print('Median jitter = ' + str(round(np.median(pd_tl_v_bv_tl_jitter)*1000))+ ' ms')
+                print('Max jitter = ' + str(round(max(pd_tl_v_bv_tl_jitter)*1000)) + ' ms')
+        else:
+            # number of flips should be the same on BV and TL
+            if len(flip_times_bv_bv) != len(flip_times_bv_tl):
+                print('Number of flips detected in BV and TL do not match:')
+                print('BV flips = ' + str(len(flip_times_bv_bv)))
+                print('TL flips = ' + str(len(flip_times_bv_tl)))
+                raise ValueError('Pulse count mismatch')
+            else:
+                print('Number of flips detected in BV and TL match:')
+                print('BV flips = ' + str(len(flip_times_bv_bv)))
+        print('Filtering complete')
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+
+
     # Use the BV ground truth for the number of flips that should be present
     true_flips = len(flip_times_bv_bv)
+
+    # Check that the number of flips detected in the PD signal is the same as the number of flips detected in the BV signal
+
     # Fit model to convert BV time to TL time either using PD or digital flip signal from BV
     if pd_valid:
         # use PD
@@ -141,28 +235,10 @@ def run_preprocess_bv2(userID, expID):
     if pd_valid:
         # Fit model to convert Harp time to TL time
         linear_interpolator_harp_2_tl = interp1d(flip_times_harp[0:true_flips], flip_times_pd_tl[0:true_flips], kind='linear', fill_value="extrapolate")
-        # Detect harp flips which occur after the last TL flip in TL time, this is because these have been observed sometimes
-        # last valid flip time in TL time
-        harp_last_valid_flip_time = flip_times_pd_tl[-1]
-        # detect how many flips are after this time
-        flip_times_harp_to_tl = linear_interpolator_harp_2_tl(flip_times_harp)
-        harp_invalid_flips = np.where(flip_times_harp_to_tl > harp_last_valid_flip_time)[0]
-        if len(harp_invalid_flips) > 0:
-            print('**** WARNING ****')   
-            print(f'Number of harp flips after last valid TL flip: {len(harp_invalid_flips)}')
-            print('Please inform Adam of this!')
-            choice = input("Do you want to continue? (y/n): ").strip().lower()
-            if choice != 'y':
-                print("Exiting...")
-                return            
-        flip_times_harp_invalid_subtracted = flip_times_harp[0:flip_times_harp.size-len(harp_invalid_flips)]
 
         # Check all systems registered the same number of pulses
         if len(flip_times_harp) == len(flip_times_bv_bv) == len(flip_times_pd_tl):
             print ('Pulse count matches accross TL/BV/Harp')
-            print ('Pulse count = ' + str(len(flip_times_harp)))
-        elif len(flip_times_harp_invalid_subtracted) == len(flip_times_bv_bv) == len(flip_times_pd_tl):
-            print ('Pulse count matches accross TL/BV/Harp after removing invalid harp pulses')
             print ('Pulse count = ' + str(len(flip_times_harp)))
         else:
             print('Harp pulses = ' + str(len(flip_times_harp)))
@@ -265,7 +341,8 @@ def run_preprocess_bv2(userID, expID):
 def main():
     # userID = 'melinatimplalexi'
     userID = 'pmateosaparicio'
-    expID = '2025-03-13_02_ESPM126'
+    # userID = 'adamranson'
+    expID = '2025-03-26_01_ESPM126'
     run_preprocess_bv2(userID, expID)
 
 if __name__ == "__main__":
