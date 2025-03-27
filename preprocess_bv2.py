@@ -17,7 +17,7 @@ def run_preprocess_bv2(userID, expID):
     # which can be detected in the electrical signal but not in the photodiode necessarily
     # we therefore remove flips of < min_pulse_width duration
     filter_flips = True
-    min_pulse_width = 0.240 # seconds
+    min_pulse_width = 0.05 # seconds
     max_pulse_width = 0.5 # seconds 
 
     animalID, remote_repository_root, \
@@ -341,8 +341,8 @@ def run_preprocess_bv2(userID, expID):
 def main():
     # userID = 'melinatimplalexi'
     userID = 'pmateosaparicio'
-    # userID = 'adamranson'
-    expID = '2025-03-26_01_ESPM126'
+    #userID = 'adamranson'
+    expID = '2025-03-13_02_ESPM126'
     run_preprocess_bv2(userID, expID)
 
 if __name__ == "__main__":

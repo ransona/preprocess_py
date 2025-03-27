@@ -11,7 +11,7 @@ import harp
 
 # os.environ['DISPLAY'] = 'localhost:10.0'
 
-def bv_timing_bug2(userID, expID,plot_on):
+def bv_timing_bug2(userID, expID,plot_on,filter_on=False):
     animalID, remote_repository_root, \
     processed_root, exp_dir_processed, \
         exp_dir_raw = organise_paths.find_paths(userID, expID)
@@ -152,9 +152,7 @@ def bv_timing_bug2(userID, expID,plot_on):
     # plt.plot((flip_times_pd_tl[0:min_pulses]-flip_times_pd_tl[0])-(flip_times_harp[0:min_pulses]-flip_times_harp[0]),label='TL PD')
     # plt.show(block=False)
 
-    filter_flips = True
-
-    if filter_flips:
+    if filter_on:
         print('Pre filtering:')
         print(f'BV pulses           =  : {len(flip_times_bv)}')
         print(f'Harp PD pulses      =  : {len(flip_times_harp)}')
@@ -163,7 +161,7 @@ def bv_timing_bug2(userID, expID,plot_on):
         # min_pulses_unfiltered = min(len(flip_times_bv),len(flip_times_pd_tl),len(flip_times_harp))
         # pulse_time_diff_tl_bv_unfiltered = (flip_times_pd_tl[0:min_pulses]-flip_times_pd_tl[0])-(flip_times_dig_tl[0:min_pulses]-flip_times_dig_tl[0])
         # remove all pulses of < a certain width in tl/harp time
-        min_width = 0.240
+        min_width = 0.05
         max_width = 0.5
         # all_diff = np.diff(flip_times_pd_tl)
         # all_diff = all_diff[all_diff < 1]
@@ -356,14 +354,15 @@ def bv_timing_bug2(userID, expID,plot_on):
 def main():
     userID = 'adamranson'
     #allExp = ['2025-03-12_01_ESPM126']
-    # allExp = ['2025-03-13_02_ESPM126'] # has 6 extra harp flips
+    allExp = ['2025-03-13_02_ESPM126'] # has 6 extra harp flips
     #allExp = ['2025-03-27_09_ESPM126'] # has no issues
     #allExp = ['2025-03-21_02_TEST'] # new setup 1 hr recording
     #allExp = ['2025-03-26_01_ESPM126'] # has a fast BV flip that is missed in PD
     #allExp = ['2025-02-26_02_ESPM126'] # has no issues
-    allExp = ['2025-03-05_02_ESMT204'] # stim artifact
+    #allExp = ['2025-03-05_02_ESMT204'] # stim artifact
+    #allExp = ['2025-03-12_01_ESPM126'] # cinematic_3
     for expID in allExp:
-        drift = bv_timing_bug2(userID, expID,plot_on=True)
+        drift = bv_timing_bug2(userID, expID,plot_on=True,filter_on=True)
         print(expID + ', ' + str(drift))
 
 if __name__ == "__main__":
