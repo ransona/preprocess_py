@@ -187,6 +187,12 @@ def bv_timing_bug2(userID, expID,plot_on,filter_on=False):
         # do sanity check to see if stochastic variation in pulse width is correlated between signals
         print('Post filtering:')
 
+    # print median difference between TL digital flips and TL PF flips
+    median_diff_pd_dig_tl = np.abs(np.median(flip_times_dig_tl - flip_times_pd_tl))
+    max_diff_pd_dig_tl = np.max(np.abs(flip_times_dig_tl - flip_times_pd_tl))
+    print(f'Median difference between TL digital flips and TL PD flips: {median_diff_pd_dig_tl}')
+    print(f'Max difference between TL digital flips and TL PD flips: {max_diff_pd_dig_tl}')
+    
     min_pulses = min(len(flip_times_bv),len(flip_times_pd_tl),len(flip_times_harp))
 
     print(f'BV pulses           =  : {len(flip_times_bv)}')
@@ -358,16 +364,16 @@ def bv_timing_bug2(userID, expID,plot_on,filter_on=False):
     # for debugging:
 def main():
     userID = 'adamranson'
-    #allExp = ['2025-03-12_01_ESPM126'] # cinematic_3
+    allExp = ['2025-03-12_01_ESPM126'] # cinematic_3
     #allExp = ['2025-03-13_02_ESPM126'] # has 6 extra harp flips
     #allExp = ['2025-03-21_02_TEST'] # new setup 1 hr recording
-    allExp = ['2025-03-26_01_ESPM126'] # has a fast BV flip that is missed in PD
+    #allExp = ['2025-03-26_01_ESPM126'] # has a fast BV flip that is missed in PD
     #allExp = ['2025-03-26_02_ESPM126'] # has no issues
     #allExp = ['2025-03-05_02_ESMT204'] # stim artifact
 
 
     for expID in allExp:
-        drift = bv_timing_bug2(userID, expID,plot_on=True,filter_on=False)
+        drift = bv_timing_bug2(userID, expID,plot_on=True,filter_on=True)
         print(expID + ', ' + str(drift))
 
 if __name__ == "__main__":
