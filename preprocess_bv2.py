@@ -127,6 +127,7 @@ def run_preprocess_bv2(userID, expID):
     if tl_pd_valid == True and harp_pd_valid == True:
         print('Both TL and Harp PD signals are valid')
         pd_valid = True
+        harp_valid = True
     else:
         print('*** Warning: One or both of the PD signals are invalid. If this is an experiment with screens off this is expected. If not, there is a problem. ***')
         choice = input("Do you want to continue? (y/n): ").strip().lower()
@@ -136,6 +137,7 @@ def run_preprocess_bv2(userID, expID):
             return
         
         pd_valid = False
+        harp_valid = True
 
     if filter_flips:
         min_pulses_unfiltered = min(len(flip_times_bv_bv),len(flip_times_pd_tl),len(flip_times_harp))
@@ -174,7 +176,7 @@ def run_preprocess_bv2(userID, expID):
         if pd_valid:
             # number of flips should be the same on all systems if PD is valid
             if (len({len(flip_times_harp),len(flip_times_bv_bv)}) != 1) and (len({len(flip_times_pd_tl),len(flip_times_bv_tl),len(flip_times_bv_bv)}) == 1):
-                # harp flip count is wrong but others are rigth so can still use BV data for encoder
+                # harp flip count is wrong but others are right so can still use BV data for encoder (caused by data frame issue)
                 print('Number of flips detected in Harp and BV do not match after filtering both other timing pulses do match. You may thus continue by using rotary encoder data from BV log instead of harp:')
                 print('Harp flips = ' + str(len(flip_times_harp)))
                 print('BV flips = ' + str(len(flip_times_bv_bv)))
@@ -184,7 +186,8 @@ def run_preprocess_bv2(userID, expID):
                     print("Exiting...")
                     return
                 # else set to not use PD and thus not use Harp for encoder
-                pd_valid = False                
+                pd_valid = True 
+                harp_valid = False
             elif len({len(flip_times_pd_tl),len(flip_times_harp),len(flip_times_bv_tl),len(flip_times_bv_bv)}) != 1:
                 print('Number of flips detected in TL, BV and Harp do not match:')
                 print('TL PD flips = ' + str(len(flip_times_pd_tl)))
@@ -240,6 +243,10 @@ def run_preprocess_bv2(userID, expID):
         if len(flip_times_harp) == len(flip_times_bv_bv) == len(flip_times_pd_tl):
             print ('Pulse count matches accross TL/BV/Harp')
             print ('Pulse count = ' + str(len(flip_times_harp)))
+        elif len(flip_times_bv_bv) == len(flip_times_pd_tl):
+            print ('Pulse count matches accross TL/BV BUT NOT HARP')
+            print ('Pulse count = ' + str(len(flip_times_harp)))    
+            print('!!!Please flag this up with Adam!!!')        
         else:
             print('Harp pulses = ' + str(len(flip_times_harp)))
             print('BV pulses = ' + str(len(flip_times_bv_bv)))
@@ -284,7 +291,7 @@ def run_preprocess_bv2(userID, expID):
     trialTimeMatrix = np.column_stack((trialOnsetTimesBV_tl, stim_order.values))
 
     # Add running trace
-    if pd_valid:
+    if pd_valid and harp_valid:
         # then we can use harp for encoder
         wheel_pos = harp_encoder
         wheel_timestamps = linear_interpolator_harp_2_tl(harp_time)
@@ -342,7 +349,7 @@ def main():
     # userID = 'melinatimplalexi'
     userID = 'pmateosaparicio'
     #userID = 'adamranson'
-    expID = '2025-03-13_02_ESPM126'
+    expID = '2025-03-26_01_ESPM126'
     run_preprocess_bv2(userID, expID)
 
 if __name__ == "__main__":

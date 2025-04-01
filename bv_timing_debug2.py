@@ -152,6 +152,11 @@ def bv_timing_bug2(userID, expID,plot_on,filter_on=False):
     # plt.plot((flip_times_pd_tl[0:min_pulses]-flip_times_pd_tl[0])-(flip_times_harp[0:min_pulses]-flip_times_harp[0]),label='TL PD')
     # plt.show(block=False)
 
+    # print min diff btw flip_times_dig_tl timing pulses
+    min_diff_dig_tl = np.min(np.diff(flip_times_dig_tl))
+    print(f'Min diff between TL digital timing pulses: {min_diff_dig_tl}')
+
+
     if filter_on:
         print('Pre filtering:')
         print(f'BV pulses           =  : {len(flip_times_bv)}')
@@ -353,16 +358,16 @@ def bv_timing_bug2(userID, expID,plot_on,filter_on=False):
     # for debugging:
 def main():
     userID = 'adamranson'
-    #allExp = ['2025-03-12_01_ESPM126']
-    allExp = ['2025-03-13_02_ESPM126'] # has 6 extra harp flips
-    #allExp = ['2025-03-27_09_ESPM126'] # has no issues
-    #allExp = ['2025-03-21_02_TEST'] # new setup 1 hr recording
-    #allExp = ['2025-03-26_01_ESPM126'] # has a fast BV flip that is missed in PD
-    #allExp = ['2025-02-26_02_ESPM126'] # has no issues
-    #allExp = ['2025-03-05_02_ESMT204'] # stim artifact
     #allExp = ['2025-03-12_01_ESPM126'] # cinematic_3
+    #allExp = ['2025-03-13_02_ESPM126'] # has 6 extra harp flips
+    #allExp = ['2025-03-21_02_TEST'] # new setup 1 hr recording
+    allExp = ['2025-03-26_01_ESPM126'] # has a fast BV flip that is missed in PD
+    #allExp = ['2025-03-26_02_ESPM126'] # has no issues
+    #allExp = ['2025-03-05_02_ESMT204'] # stim artifact
+
+
     for expID in allExp:
-        drift = bv_timing_bug2(userID, expID,plot_on=True,filter_on=True)
+        drift = bv_timing_bug2(userID, expID,plot_on=True,filter_on=False)
         print(expID + ', ' + str(drift))
 
 if __name__ == "__main__":
