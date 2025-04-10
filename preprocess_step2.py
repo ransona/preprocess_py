@@ -11,6 +11,7 @@ import organise_paths
 import preprocess_bv
 import preprocess_bv2
 import preprocess_s2p
+import preprocess_s2p_meso
 import preprocess_ephys
 import preprocess_pupil_timestamp
 import preprocess_cut
@@ -50,7 +51,23 @@ def run_preprocess_step2(userID, expID, pre_secs, post_secs, run_bonvision, run_
         # Process S2P data
         ###########################################################
         print('Starting S2P section...')
-        preprocess_s2p.run_preprocess_s2p(userID, expID)
+        # determine if it's a mesoscope experiment or not
+
+        # List of target subfolders which indicate a mesoscope experiment
+        target_folders = ['P1', 'P2']
+        # Get list of all items in the folder
+        items = os.listdir(exp_dir_processed)
+        # Check for folders named P1 or P2
+        mesoscope = False
+        for name in target_folders:
+            if name in items and os.path.isdir(os.path.join(exp_dir_processed, name)):
+                mesoscope = True
+                break
+                
+        if mesoscope:        
+            preprocess_s2p_meso.run_preprocess_s2p_meso(userID, expID)
+        else:
+            preprocess_s2p.run_preprocess_s2p(userID, expID)
 
     if run_ephys:
         ###########################################################

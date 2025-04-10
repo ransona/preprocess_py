@@ -279,7 +279,7 @@ def main():
         # debug mode
         print('Parameters received via debug mode')
         userID = 'adamranson'
-        expID = '2022-02-07_03_ESPM039'
+        expID = '2025-04-09_04_ESYB007'
     preprocess_pupil_run(userID, expID)    
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ def run_preprocess_bv2(userID, expID):
     # we therefore remove flips of < min_pulse_width duration
     filter_flips = True
     min_pulse_width = 0.05 # seconds
-    max_pulse_width = 0.5 # seconds 
+    max_pulse_width = 1.75 # seconds 
 
     animalID, remote_repository_root, \
     processed_root, exp_dir_processed, \
@@ -46,12 +46,25 @@ def run_preprocess_bv2(userID, expID):
                             header=None, skiprows=[0], dtype={'Frame':np.float32, 'Timestamp':np.float32, 'Sync':np.float32, 'Trial':np.float32})    
 
     # load Harp raw data
-    harp_data_path = os.path.join(exp_dir_raw, expID + '_Behavior_Event44.bin')
-    data_read = harp.io.read(harp_data_path)
-    data_read_np = np.array(data_read)
-    # data_read_np[0:400,0] = data_read_np[400,0]
+    # check if they exist and which version
+    if os.path.exists(os.path.join(exp_dir_raw, expID + '_Behavior_Event44.bin')):
+        data_read = harp.io.read(os.path.join(exp_dir_raw, expID + '_Behavior_Event44.bin'))
+        data_read_np = np.array(data_read)
+        # remove first 400 samples of data as they can contain initiatation random signals
+        data_read_np[0:400,0] = data_read_np[400,0]
+        # harp encoder log was previously summed
+        harp_encoder = data_read_np[:,1]
+    elif os.path.exists(os.path.join(exp_dir_raw, expID + '_Behavior_44.bin')):
+        data_read = harp.io.read(os.path.join(exp_dir_raw, expID + '_Behavior_44.bin'))
+        data_read_np = np.array(data_read)
+        # remove first 400 samples of data as they can contain initiatation random signals
+        data_read_np[0:400,0] = data_read_np[400,0]        
+        # harp encoder log was later dif and so do cumsum of difs
+        harp_encoder = np.cumsum(data_read_np[:,1])
+    else:
+        raise Exception('Harp data file not found')
+    
     harp_pd = data_read_np[:,0]
-    harp_encoder = data_read_np[:,1]
     harp_time = np.arange(0, len(harp_pd)/1000, 1/1000)
 
     # /////////////// DETECTING TIMING PULSES ///////////////
