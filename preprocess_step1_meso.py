@@ -10,6 +10,7 @@ import pickle
 def run_preprocess_step1_meso(jobID,userID, expID, suite2p_config, runs2p, rundlc, runfitpupil): 
     print('Starting job: ' + jobID)
     print('--------------------------------------------------')
+    combining_experiments = False
     if jobID != '':
         queue_path = '/data/common/queues/step1'
         queued_command = pickle.load(open(os.path.join(queue_path,jobID), "rb"))
@@ -22,13 +23,18 @@ def run_preprocess_step1_meso(jobID,userID, expID, suite2p_config, runs2p, rundl
             # multiple expIDs being processing in suite2p together
             # make exp_dir_raw contain all data paths
             # make expID the first one
+            combining_experiments = True
             allExpIDs = expID.split(',')
             # generate exp path for each expID
             tif_path = []
+            # use first expID to get the base expID
+            _, _, _, exp_dir_processed, exp_dir_raw = organise_paths.find_paths(userID, allExpIDs[0])
             for expID_each in allExpIDs:
+                # get all exp root dir paths
                 _, _, _, exp_dir_processed, exp_dir_raw = organise_paths.find_paths(userID, expID_each)
                 tif_path.append(exp_dir_raw)
-            exp_dir_raw = ','.join(tif_path)
+            exp_dir_raw_all = ','.join(tif_path)
+            # use first expID to know where to output data
             _, _, _, exp_dir_processed, _ = organise_paths.find_paths(userID, allExpIDs[0])
     else:
         print('No jobID provided - running in debug mode')
@@ -98,6 +104,19 @@ def run_preprocess_step1_meso(jobID,userID, expID, suite2p_config, runs2p, rundl
                 s2p_output_path = os.path.join(exp_dir_processed,current_scanpath_name,roi_folders[i_scanpath][i_roi])
                 # make the output directory if it doesn't already exist
                 os.makedirs(s2p_output_path, exist_ok = True)
+
+                # check if combining several experiments and if so pass all paths to s2p
+                if combining_experiments:
+                    # then pass all paths to s2p
+                    exp_dir_raw_roi = exp_dir_raw_all
+                    # cycle through adding path and roi folder names to base experiment path
+                    for i in range(len(exp_dir_raw_roi)):
+                        exp_dir_raw_roi[i] = os.path.join(exp_dir_raw_roi[i],roi_folders[i_scanpath][i_roi])
+                        # check it exists (validation of experiments being combined being all uniform
+                        if not os.path.exists(exp_dir_raw_roi[i]):
+                            raise Exception("Experiment " + exp_dir_raw_roi[i] + " does not exist, indicating the experiments being combined are not uniform")
+                    # pass the paths to s2p
+                    tif_path = ','.join(exp_dir_raw_roi)
 
                 if run_s2p_as_usr:
                     cmd = ['sudo', '-u', userID, '/opt/scripts/conda-run.sh',suite2p_env,'python',s2p_launcher,userID,expID,tif_path,config_path]
