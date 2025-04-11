@@ -371,6 +371,8 @@ def run_preprocess_s2p_meso(userID, expID,debug_mode=False):
         ca_data['AllRoiPix']    = allRoiPix[iCh]
         ca_data['AllRoiMaps']   = allRoiMaps[iCh]
         ca_data['AllFOV']       = allFOV[iCh]
+        ca_data['allScanpaths'] = allScanpaths[iCh]
+        ca_data['allSIRois']    = allSIRois[iCh]
         ca_data['t']            = outputTimes
         output_filename = 's2p_ch' + str(iCh)+'.pickle'
         # check if the output directory exists
