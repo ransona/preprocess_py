@@ -123,7 +123,7 @@ def run_preprocess_step1_meso(jobID,userID, expID, suite2p_config, runs2p, rundl
                 else:
                     cmd = ['/opt/scripts/conda-run.sh','suite2p','python',s2p_launcher,userID,expID,tif_path,s2p_output_path,config_path]
 
-                print('Starting S2P launcher...')
+                print('Starting S2P launcher...')  
                 #subprocess.run(cmd, shell=True)
                 # with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
 
@@ -229,7 +229,7 @@ def main():
     jobID = '2025_04_10_10_17_15_adamranson_2025-04-09_04_ESYB007.pickle'
     expID = '2025-04-09_04_ESYB007'
     userID = 'adamranson'
-    suite2p_config = "[['ch_1_depth_1.npy'],['ch_1_depth_1.npy']]"
+    suite2p_config = "[['ch_1_depth_1_artifact.npy'],['ch_1_depth_1_artifact.npy']]"
     runs2p          = True
     rundlc          = False
     runfitpupil     = False

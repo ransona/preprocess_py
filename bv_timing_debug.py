@@ -396,11 +396,11 @@ def main():
     #allExp = ['2025-03-05_02_ESMT204'] # stim artifact
     #allExp = ['2025-02-26_02_ESPM126']
     #allExp = ['2025-02-13_05_ESPM127']
-    allExp = ['2025-04-09_04_ESYB007']
+    allExp = ['2025-04-10_26_TEST']
 
 
     for expID in allExp:
-        drift = bv_timing_bug(userID, expID,plot_on=True,filter_on=False)
+        drift = bv_timing_bug(userID, expID,plot_on=True,filter_on=True)
         print(expID + ', ' + str(drift))
 
 if __name__ == "__main__":

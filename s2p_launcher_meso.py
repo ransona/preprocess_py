@@ -62,21 +62,31 @@ def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
 def main():
     print('S2P Launcher Run...')
     try:
+        'Run from command line'
         # has been run from sys command line after conda activate
         userID = sys.argv[1]
+        print('userID = ' + userID)
         expID = sys.argv[2]
+        print('ExpID = ' + expID)
         tif_path = sys.argv[3]
+        print('tif_path = ' + tif_path)
         output_path = sys.argv[4]
+        print('output_path = ' + output_path)
         config_path = sys.argv[5]
+        print('config_path = ' + config_path)
         s2p_launcher_run(userID,expID,tif_path,output_path,config_path)
     except:
+        # show the exception
+        print('Error: ' + str(sys.exc_info()[0]))
+        return
+
         # debug mode
-        expID = '2025-03-05_02_ESMT204'
-        userID = 'adamranson'        
-        tif_path = '/home/adamranson/data/tif_meso/local_repository/ESMT204/2025-03-05_02_ESMT204/P1/R001'
-        output_path = '/home/adamranson/data/tif_meso/processed_repository/ESMT204/2025-03-05_02_ESMT204/P1/R001'
-        config_path = os.path.join('/data/common/configs/s2p_configs',userID,'ch_1_depth_3_artifact.npy')
-        s2p_launcher_run(userID,expID,tif_path,output_path,config_path)
+        # expID = '2025-03-05_02_ESMT204'
+        # userID = 'adamranson'        
+        # tif_path = '/home/adamranson/data/tif_meso/local_repository/ESMT204/2025-03-05_02_ESMT204/P1/R001'
+        # output_path = '/home/adamranson/data/tif_meso/processed_repository/ESMT204/2025-03-05_02_ESMT204/P1/R001'
+        # config_path = os.path.join('/data/common/configs/s2p_configs',userID,'ch_1_depth_3_artifact.npy')
+        # s2p_launcher_run(userID,expID,tif_path,output_path,config_path)
     
 
 if __name__ == "__main__":
