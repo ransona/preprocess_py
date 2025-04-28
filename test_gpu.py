@@ -6,3 +6,5 @@ try:
     assert ngpus > 0
 except:
     print(f'GPU problems: expecting at least 1 GPU, found {ngpus}')
+
+    
