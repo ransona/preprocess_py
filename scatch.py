@@ -1,4 +1,4 @@
-OPTION2 collections import defaultdict
+OPTION1 collections import defaultdict
 
 # Recursive defaultdict constructor
 def nested_dict():
@@ -33,4 +33,4 @@ print("Value (allRoiPix[0][0][0][0]):", allRoiPix[0][0][0][0])
 # Print entire structure
 import pprint
 print("\nFull structure:")
-pprint.pprint(allRoiPix)
+pprint.pprint(allRoiPix)  
