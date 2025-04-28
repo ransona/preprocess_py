@@ -33,4 +33,4 @@ print("Value (allRoiPix[0][0][0][0]):", allRoiPix[0][0][0][0])
 # Print entire structure
 import pprint
 print("\nFull structure:")
-pprint.pprint(allRoiPix)
+pprint.pprint(allRoiPix)  
