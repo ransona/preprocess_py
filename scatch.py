@@ -1,4 +1,4 @@
-from collections import defaultdict
+OPTION2 collections import defaultdict
 
 # Recursive defaultdict constructor
 def nested_dict():
