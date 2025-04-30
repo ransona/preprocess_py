@@ -1,11 +1,20 @@
 # these scripts are to run commands that need to be run in specific conda environments
 # they should be run from the command line
-from conceivable import thread_limit
 import sys
 import suite2p
 import organise_paths
 import numpy as np
 import os
+import socket
+import shutil
+
+if socket.gethostname() == 'AdamDellXPS15':
+    print('Running on AdamDellXPS15 without thread limits')
+elif socket.gethostname() == 'ar-lab-si2':  
+    print('Running on ar-lab-si2 without thread limits')
+else:
+    print('Running on server without thread limits')
+    # from conceivable import thread_limit
 
 def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
     # determine if several experiments are being run together or not:
@@ -16,6 +25,11 @@ def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
     #     if search_str in foldername and os.path.isdir(os.path.join(exp_dir_processed, foldername)):
     #         os.rmdir(os.path.join(exp_dir_processed, foldername))
     # split tif path: if there is only one path it still outputs this as a list
+    # delete the output path and contents if it already exists using shutil.rmtree
+    if os.path.exists(output_path):
+        print('Deleting existing output path: ' + output_path)
+        shutil.rmtree(output_path)
+
     allTifPaths = tif_path.split(',')
     print('tif_path = ' + tif_path)
     allExpIDs = expID.split(',')
@@ -61,32 +75,33 @@ def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
 # for debugging:
 def main():
     print('S2P Launcher Run...')
-    try:
-        'Run from command line'
-        # has been run from sys command line after conda activate
-        userID = sys.argv[1]
-        print('userID = ' + userID)
-        expID = sys.argv[2]
-        print('ExpID = ' + expID)
-        tif_path = sys.argv[3]
-        print('tif_path = ' + tif_path)
-        output_path = sys.argv[4]
-        print('output_path = ' + output_path)
-        config_path = sys.argv[5]
-        print('config_path = ' + config_path)
-        s2p_launcher_run(userID,expID,tif_path,output_path,config_path)
-    except:
-        # show the exception
-        print('Error: ' + str(sys.exc_info()[0]))
-        return
-
+    if len(sys.argv) > 1:
+        try:
+            'Run from command line'
+            # has been run from sys command line after conda activate
+            userID = sys.argv[1]
+            print('userID = ' + userID)
+            expID = sys.argv[2]
+            print('ExpID = ' + expID)
+            tif_path = sys.argv[3]
+            print('tif_path = ' + tif_path)
+            output_path = sys.argv[4]
+            print('output_path = ' + output_path)
+            config_path = sys.argv[5]
+            print('config_path = ' + config_path)
+            s2p_launcher_run(userID,expID,tif_path,output_path,config_path)
+        except:
+            # show the exception
+            print('Error: ' + str(sys.exc_info()[0]))
+            return
+    else:
         # debug mode
-        # expID = '2025-03-05_02_ESMT204'
-        # userID = 'adamranson'        
-        # tif_path = '/home/adamranson/data/tif_meso/local_repository/ESMT204/2025-03-05_02_ESMT204/P1/R001'
-        # output_path = '/home/adamranson/data/tif_meso/processed_repository/ESMT204/2025-03-05_02_ESMT204/P1/R001'
-        # config_path = os.path.join('/data/common/configs/s2p_configs',userID,'ch_1_depth_3_artifact.npy')
-        # s2p_launcher_run(userID,expID,tif_path,output_path,config_path)
+        expID = '2025-04-13_03_ESYB007'
+        userID = 'adamranson'        
+        tif_path = 'C:\\Pipeline\\Repository\\ESYB007\\2025-04-13_03_ESYB007\\P2\\R001'
+        output_path = 'C:\\Pipeline\\Repository_Processed\\adamranson\\data\\Repository\\ESYB007\\2025-04-13_03_ESYB007\\P2\\R001'
+        config_path = os.path.join('C:\\Pipeline\\s2p_configs\\adamranson\\1c1d1024px.npy')
+        s2p_launcher_run(userID,expID,tif_path,output_path,config_path)
     
 
 if __name__ == "__main__":
