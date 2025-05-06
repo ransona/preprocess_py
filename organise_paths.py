@@ -244,7 +244,7 @@ def get_ssh_settings():
         port = 10022
         username = 'machine-pipeline-access'
         key_path = '~/.ssh/id_ed25519_pipeline'
-        remote_queue_path = '/home/adamranson/local_pipelines/AdamDellXPS15/queues/step1'
+        remote_queue_path = os.path.join('/home/adamranson/local_pipelines',computer_name,'queues/step1')
     elif computer_name == 'dream':
         ValueError('Dream computer detected. No symbolic links made.')
     else:
