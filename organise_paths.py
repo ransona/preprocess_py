@@ -1,6 +1,7 @@
 import os
 import socket
 import shutil
+from pathlib import Path
 
 def find_paths(userID, expID):
     computer_name = socket.gethostname()
@@ -58,10 +59,10 @@ def log_path(log_filename):
     #print(computer_name)
     if computer_name == 'AdamDellXPS15':
         # adam's laptop
-        return 'C://Pipeline//queues//step1//logs' + log_filename
+        return os.path.join('C://Pipeline//queues//step1//logs', log_filename)
     else:
         # assume server
-        return '/data/common/queues/step1/logs/' + log_filename
+        return os.path.join('/data/common/queues/step1/logs/', log_filename)
 
 def s2p_config_root():
     computer_name = socket.gethostname()
@@ -137,13 +138,16 @@ def get_nas_s2p_path(expID):
         # assume server
         raise ValueError("Computer name not recognised. Please check the nas_s2p_path function.")
     
-def remote_processed_data_root():
+def remote_processed_data_root(jobID=None):
     # where to push data back to server so that it can then be moved to user folder
     computer_name = socket.gethostname()
     #print(computer_name)
     if computer_name == 'AdamDellXPS15':
         # adam's laptop
-        return os.path.normpath('/home/adamranson/local_pipelines/AdamDellXPS15/processed_data')
+        if jobID:
+            return os.path.join('/home/adamranson/local_pipelines/AdamDellXPS15/processed_data/',jobID)
+        else:
+            return '/home/adamranson/local_pipelines/AdamDellXPS15/processed_data'
 
 def make_symbolic_links(expIDs, data_type):
 
@@ -232,13 +236,41 @@ def get_ssh_settings():
         host = '158.109.215.222'
         port = 10022
         username = 'adamranson'
-        key_path = 'C:\\Users\\ranso\\.ssh\\id_ed25519'
+        key_path = '~/.ssh/id_ed25519'
         remote_queue_path = '/home/adamranson/local_pipelines/AdamDellXPS15/queues/step1'
     else:
         ValueError("Computer name not recognised. Please check the get_ssh_settings function.")
     
     return host, port, username, key_path
 
+
+def move_data_folder(src_path_str, job_id):
+    src_path = Path(src_path_str)
+
+    # Locate 'Repository_Processed' in the path
+    parts = src_path.parts
+    try:
+        idx = parts.index("Repository_Processed")
+    except ValueError:
+        raise ValueError("'Repository_Processed' not found in source path")
+
+    # Compute relative path after 'Repository_Processed'
+    relative_path = Path(*parts[idx + 1:])
+
+    # Compute new base path with job ID inserted
+    dest_path = Path(*parts[:idx]) / "Repository_Processed" / "complete" / job_id / relative_path
+
+    # Create required parent directories
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Move the folder if destination doesn't exist
+    if not dest_path.exists():
+        shutil.move(str(src_path), str(dest_path))
+    else:
+        raise FileExistsError(f"Destination already exists: {dest_path}")
+
+    base_path = Path(*parts[:idx]) / "Repository_Processed" / "complete" / job_id
+    return str(base_path)
 
 # what to do when it runs as a script
 if __name__ == "__main__":

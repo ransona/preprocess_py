@@ -126,28 +126,28 @@ def run_preprocess_step1_meso(jobID,userID, expID, suite2p_config, runs2p, rundl
                 # with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
 
                 with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1) as proc:
-                    # # Read the output line by line and process it
-                    # for line in proc.stdout:
-                    #     print(line)
-                    #     allOut = allOut + line
-                    #     sys.stdout.flush()
-                    #     with open(log_path, 'a') as file:
-                    #         file.write(line)
+                    # Read the output line by line and process it
+                    for line in proc.stdout:
+                        print(line)
+                        allOut = allOut + line
+                        sys.stdout.flush()
+                        with open(log_path, 'a') as file:
+                            file.write(line)
 
-                    # # Read the error output line by line and process it
-                    # error_output = ""
-                    # for line in proc.stderr:
-                    #     print("Error: " + line)
-                    #     error_output += line
-                    #     sys.stdout.flush()
-                    #     with open(log_path, 'a') as file:
-                    #         file.write(line)
+                    # Read the error output line by line and process it
+                    error_output = ""
+                    for line in proc.stderr:
+                        print("Error: " + line)
+                        error_output += line
+                        sys.stdout.flush()
+                        with open(log_path, 'a') as file:
+                            file.write(line)
 
-                    # proc.wait()
-                    # if proc.returncode != 0:
-                    #     with open(log_path, 'w') as file:
-                    #         file.write(allOut)
-                    #     raise Exception("An error occurred during the execution of suite2p")
+                    proc.wait()
+                    if proc.returncode != 0:
+                        with open(log_path, 'w') as file:
+                            file.write(allOut)
+                        raise Exception("An error occurred during the execution of suite2p")
                 
                 x=0
 
