@@ -49,7 +49,7 @@ def remote_queue_path():
     #print(computer_name)
     if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # adam's laptop
-        return os.path.join('/data/common/local_pipelines',computer_name,'queues/step1')
+        return '/data/common/local_pipelines/' + computer_name + '/queues/step1'
     elif computer_name == 'dream':
         # assume server
         return '/data/common/queues/step1'   
@@ -151,9 +151,9 @@ def remote_processed_data_root(jobID=None):
     if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # adam's laptop
         if jobID:
-            return os.path.join('/home/machine-pipeline-access/local_pipelines',computer_name,'processed_data/',jobID)
+            return '/home/machine-pipeline-access/local_pipelines/' + computer_name + '/processed_data/' + jobID
         else:
-            return os.path.join('/home/machine-pipeline-access/local_pipelines',computer_name,'processed_data/')
+            return '/home/machine-pipeline-access/local_pipelines/' + computer_name + '/processed_data/'
     elif computer_name == 'dream':
         ValueError("You are on dream. Please check the remote_processed_data_root function.")
 
@@ -247,7 +247,6 @@ def get_ssh_settings():
         port = 10022
         username = 'machine-pipeline-access'
         key_path = '~/.ssh/id_ed25519_pipeline'
-        remote_queue_path = os.path.join('/data/common/local_pipelines',computer_name,'queues/step1')
     elif computer_name == 'dream':
         ValueError('Dream computer detected. No symbolic links made.')
     else:
