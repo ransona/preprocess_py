@@ -242,8 +242,8 @@ def get_ssh_settings():
     if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':     
         host = '158.109.215.222'
         port = 10022
-        username = 'adamranson'
-        key_path = '~/.ssh/id_ed25519'
+        username = 'machine-pipeline-access'
+        key_path = '~/.ssh/id_ed25519_pipeline'
         remote_queue_path = '/home/adamranson/local_pipelines/AdamDellXPS15/queues/step1'
     elif computer_name == 'dream':
         ValueError('Dream computer detected. No symbolic links made.')
