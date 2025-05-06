@@ -90,7 +90,7 @@ def s2p_launcher_command(run_as_user,userID, expID, suite2p_env, tif_path, s2p_o
     #print(computer_name)
     if computer_name == 'AdamDellXPS15':
         # adam's laptop
-        s2p_launcher = os.path.normpath('P://code//repos//preprocess_py//s2p_launcher_meso.py')
+        s2p_launcher = os.path.normpath('c://code//repos//preprocess_py//s2p_launcher_meso.py')
         cmd = [
             r'C:\Users\ranso\anaconda3\envs\suite2p\python.exe',
             '-u',
@@ -100,7 +100,7 @@ def s2p_launcher_command(run_as_user,userID, expID, suite2p_env, tif_path, s2p_o
         return cmd
     elif computer_name == 'ar-lab-si2':
         # SI2 computer
-        s2p_launcher = os.path.normpath('P://code//repos//preprocess_py//s2p_launcher_meso.py')
+        s2p_launcher = os.path.normpath('c://code//repos//preprocess_py//s2p_launcher_meso.py')
         cmd = [
             r'C:\Users\ScanImage\miniconda3\envs\suite2p\python.exe',
             '-u',
