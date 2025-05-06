@@ -9,9 +9,9 @@ def find_paths(userID, expID):
     animalID = expID[14:]
     if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # path to root of raw data (usually hosted on server
-        remote_repository_root = os.path.normpath(os.path.join('C:/Pipeline/Repository'))
+        remote_repository_root = os.path.normpath(os.path.join('P:/Pipeline/Repository'))
         # path to root of processed data
-        processed_root = os.path.normpath(os.path.join('C:/Pipeline/Repository_Processed/',userID,'data/Repository'))
+        processed_root = os.path.normpath(os.path.join('P:/Pipeline/Repository_Processed/',userID,'data/Repository'))
         # complete path to processed experiment data
         exp_dir_processed = os.path.normpath(os.path.join(processed_root, animalID, expID)  )
         # complete path to processed experiment data recordings
@@ -37,9 +37,9 @@ def find_paths(userID, expID):
 def queue_path():
     computer_name = socket.gethostname()
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15':
+    if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # adam's laptop
-        return 'C://Pipeline//queues//step1'
+        return 'P://Pipeline//queues//step1'
     elif computer_name == 'dream':
         # assume server
         return '/data/common/queues/step1'
@@ -47,7 +47,7 @@ def queue_path():
 def remote_queue_path():
     computer_name = socket.gethostname()
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15':
+    if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # adam's laptop
         return '/home/adamranson/local_pipelines/AdamDellXPS15/queues/step1'
     elif computer_name == 'dream':
@@ -57,9 +57,9 @@ def remote_queue_path():
 def log_path(log_filename):
     computer_name = socket.gethostname()
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15':
+    if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # adam's laptop
-        return os.path.join('C://Pipeline//queues//step1//logs', log_filename)
+        return os.path.join('P://Pipeline//queues//step1//logs', log_filename)
     elif computer_name == 'dream':
         # assume server
         return os.path.join('/data/common/queues/step1/logs/', log_filename)
@@ -67,9 +67,9 @@ def log_path(log_filename):
 def s2p_config_root():
     computer_name = socket.gethostname()
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15':
+    if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # adam's laptop
-        return 'C://Pipeline//s2p_configs','/data/common/configs/s2p_configs'
+        return 'P://Pipeline//s2p_configs','/data/common/configs/s2p_configs'
     elif computer_name == 'dream':
         # assume server
         return '/data/common/configs/s2p_configs','/data/common/configs/s2p_configs'
@@ -77,9 +77,9 @@ def s2p_config_root():
 def s2p_config_path(user,config_name):
     computer_name = socket.gethostname()
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15':
+    if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # adam's laptop
-        return os.path.normpath(os.path.join('C://Pipeline//s2p_configs',user,config_name))
+        return os.path.normpath(os.path.join('P://Pipeline//s2p_configs',user,config_name))
     elif computer_name == 'dream':
         # assume server
         return os.path.normpath(os.path.join('/data/common/configs/s2p_configs',user,config_name))
@@ -88,22 +88,25 @@ def s2p_launcher_command(run_as_user,userID, expID, suite2p_env, tif_path, s2p_o
 
     computer_name = socket.gethostname()
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15':
+    if computer_name == 'AdamDellXPS15'
         # adam's laptop
-        s2p_launcher = os.path.normpath('C://code//repos//preprocess_py//s2p_launcher_meso.py')
-        # cmd = [
-        #     'conda', 'run', 
-        #     '-n', suite2p_env, 
-        #     'python', '-u', s2p_launcher, 
-        #     userID, expID, tif_path, s2p_output_path, config_path
-        # ]
+        s2p_launcher = os.path.normpath('P://code//repos//preprocess_py//s2p_launcher_meso.py')
         cmd = [
             r'C:\Users\ranso\anaconda3\envs\suite2p\python.exe',
             '-u',
             s2p_launcher,
             userID, expID, tif_path, s2p_output_path, config_path
         ]        
-        
+        return cmd
+    elif computer_name == 'ar-lab-si2':
+        # SI2 computer
+        s2p_launcher = os.path.normpath('P://code//repos//preprocess_py//s2p_launcher_meso.py')
+        cmd = [
+            r'C:\Users\ScanImage\miniconda3\envs\suite2p\python.exe',
+            '-u',
+            s2p_launcher,
+            userID, expID, tif_path, s2p_output_path, config_path
+        ]        
         return cmd
     elif computer_name == 'dream':
         # assume server
@@ -119,7 +122,7 @@ def get_local_s2p_path(expID):
     computer_name = socket.gethostname()
     animalID = expID[14:]
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15':
+    if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # adam's laptop
         return os.path.normpath(os.path.join('C:/Repository', animalID, expID))
     elif computer_name == 'dream':
@@ -131,7 +134,7 @@ def get_nas_s2p_path(expID):
     computer_name = socket.gethostname()
     animalID = expID[14:]
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15':
+    if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # adam's laptop
         return os.path.normpath(os.path.join('\\\\ar-lab-nas1\\DataServer\\Remote_Repository', animalID, expID))
     elif computer_name == 'dream':
@@ -142,7 +145,7 @@ def remote_processed_data_root(jobID=None):
     # where to push data back to server so that it can then be moved to user folder
     computer_name = socket.gethostname()
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15':
+    if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # adam's laptop
         if jobID:
             return os.path.join('/home/adamranson/local_pipelines/AdamDellXPS15/processed_data/',jobID)
@@ -186,7 +189,7 @@ def make_symbolic_links(expIDs, data_type):
      
     computer_name = socket.gethostname()
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15':    
+    if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':    
         # iterate over the expIDs checking if each exists, and if it does not make appropritate symbolic links
         if not ',' in expIDs:
             expIDs = [expIDs]
@@ -236,7 +239,7 @@ def make_symbolic_links(expIDs, data_type):
 def get_ssh_settings():
     computer_name = socket.gethostname()
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15':     
+    if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':     
         host = '158.109.215.222'
         port = 10022
         username = 'adamranson'
