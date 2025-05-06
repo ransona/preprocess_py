@@ -7,7 +7,7 @@ def find_paths(userID, expID):
     computer_name = socket.gethostname()
     #print(computer_name)
     animalID = expID[14:]
-    if computer_name == 'AdamDellXPS15':
+    if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # path to root of raw data (usually hosted on server
         remote_repository_root = os.path.normpath(os.path.join('C:/Pipeline/Repository'))
         # path to root of processed data
@@ -18,7 +18,7 @@ def find_paths(userID, expID):
         exp_dir_processed_recordings = os.path.normpath(os.path.join(processed_root, animalID, expID,'recordings'))
         # complete path to raw experiment data (usually hosted on server)
         exp_dir_raw = os.path.normpath(os.path.join(remote_repository_root, animalID, expID))
-    else:
+    elif computer_name == 'dream':
         # assume server
         # path to root of raw data (usually hosted on server)
         remote_repository_root = os.path.join('/data/Remote_Repository')
@@ -40,7 +40,7 @@ def queue_path():
     if computer_name == 'AdamDellXPS15':
         # adam's laptop
         return 'C://Pipeline//queues//step1'
-    else:
+    elif computer_name == 'dream':
         # assume server
         return '/data/common/queues/step1'
     
@@ -50,7 +50,7 @@ def remote_queue_path():
     if computer_name == 'AdamDellXPS15':
         # adam's laptop
         return '/home/adamranson/local_pipelines/AdamDellXPS15/queues/step1'
-    else:
+    elif computer_name == 'dream':
         # assume server
         return '/data/common/queues/step1'   
         
@@ -60,7 +60,7 @@ def log_path(log_filename):
     if computer_name == 'AdamDellXPS15':
         # adam's laptop
         return os.path.join('C://Pipeline//queues//step1//logs', log_filename)
-    else:
+    elif computer_name == 'dream':
         # assume server
         return os.path.join('/data/common/queues/step1/logs/', log_filename)
 
@@ -70,7 +70,7 @@ def s2p_config_root():
     if computer_name == 'AdamDellXPS15':
         # adam's laptop
         return 'C://Pipeline//s2p_configs','/data/common/configs/s2p_configs'
-    else:
+    elif computer_name == 'dream':
         # assume server
         return '/data/common/configs/s2p_configs','/data/common/configs/s2p_configs'
 
@@ -80,7 +80,7 @@ def s2p_config_path(user,config_name):
     if computer_name == 'AdamDellXPS15':
         # adam's laptop
         return os.path.normpath(os.path.join('C://Pipeline//s2p_configs',user,config_name))
-    else:
+    elif computer_name == 'dream':
         # assume server
         return os.path.normpath(os.path.join('/data/common/configs/s2p_configs',user,config_name))
 
@@ -105,7 +105,7 @@ def s2p_launcher_command(run_as_user,userID, expID, suite2p_env, tif_path, s2p_o
         ]        
         
         return cmd
-    else:
+    elif computer_name == 'dream':
         # assume server
         if run_as_user:
             cmd = ['sudo', '-u', userID, '/opt/scripts/conda-run.sh',suite2p_env,'python',s2p_launcher,userID,expID,tif_path,config_path]
@@ -122,7 +122,7 @@ def get_local_s2p_path(expID):
     if computer_name == 'AdamDellXPS15':
         # adam's laptop
         return os.path.normpath(os.path.join('C:/Repository', animalID, expID))
-    else:
+    elif computer_name == 'dream':
         # assume server
         raise ValueError("Computer name not recognised. Please check the local_2p_path function.")
     
@@ -134,7 +134,7 @@ def get_nas_s2p_path(expID):
     if computer_name == 'AdamDellXPS15':
         # adam's laptop
         return os.path.normpath(os.path.join('\\\\ar-lab-nas1\\DataServer\\Remote_Repository', animalID, expID))
-    else:
+    elif computer_name == 'dream':
         # assume server
         raise ValueError("Computer name not recognised. Please check the nas_s2p_path function.")
     
@@ -148,6 +148,8 @@ def remote_processed_data_root(jobID=None):
             return os.path.join('/home/adamranson/local_pipelines/AdamDellXPS15/processed_data/',jobID)
         else:
             return '/home/adamranson/local_pipelines/AdamDellXPS15/processed_data'
+    elif computer_name == 'dream':
+        ValueError("Computer name not recognised. Please check the remote_processed_data_root function.")
 
 def make_symbolic_links(expIDs, data_type):
 
@@ -228,7 +230,9 @@ def make_symbolic_links(expIDs, data_type):
                         if os.path.exists(dest):
                             os.unlink(dest)  # remove existing symbolic link or file
                         os.symlink(src, dest)
-                             
+    elif computer_name == 'dream':
+        print('Dream computer detected. No symbolic links made.')
+                  
 def get_ssh_settings():
     computer_name = socket.gethostname()
     #print(computer_name)
@@ -238,9 +242,10 @@ def get_ssh_settings():
         username = 'adamranson'
         key_path = '~/.ssh/id_ed25519'
         remote_queue_path = '/home/adamranson/local_pipelines/AdamDellXPS15/queues/step1'
+    elif computer_name == 'dream':
+        ValueError('Dream computer detected. No symbolic links made.')
     else:
-        ValueError("Computer name not recognised. Please check the get_ssh_settings function.")
-    
+        raise ValueError("Computer name not recognised. Please check the get_ssh_settings function.")
     return host, port, username, key_path
 
 
