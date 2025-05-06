@@ -49,7 +49,7 @@ def remote_queue_path():
     #print(computer_name)
     if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # adam's laptop
-        return '/home/adamranson/local_pipelines/AdamDellXPS15/queues/step1'
+        return os.path.join('/data/common/local_pipelines',computer_name,'queues/step1')
     elif computer_name == 'dream':
         # assume server
         return '/data/common/queues/step1'   
@@ -122,9 +122,12 @@ def get_local_s2p_path(expID):
     computer_name = socket.gethostname()
     animalID = expID[14:]
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
+    if computer_name == 'AdamDellXPS15':
         # adam's laptop
         return os.path.normpath(os.path.join('C:/Repository', animalID, expID))
+    elif computer_name == 'ar-lab-si2':
+        # scanimage computer in lab2
+        return os.path.normpath(os.path.join('F:\Local_Repository', animalID, expID))    
     elif computer_name == 'dream':
         # assume server
         raise ValueError("Computer name not recognised. Please check the local_2p_path function.")
@@ -148,11 +151,11 @@ def remote_processed_data_root(jobID=None):
     if computer_name == 'AdamDellXPS15' or computer_name == 'ar-lab-si2':
         # adam's laptop
         if jobID:
-            return os.path.join('/home/adamranson/local_pipelines/AdamDellXPS15/processed_data/',jobID)
+            return os.path.join('/home/machine-pipeline-access/local_pipelines',computer_name,'processed_data/',jobID)
         else:
-            return '/home/adamranson/local_pipelines/AdamDellXPS15/processed_data'
+            return os.path.join('/home/machine-pipeline-access/local_pipelines',computer_name,'processed_data/')
     elif computer_name == 'dream':
-        ValueError("Computer name not recognised. Please check the remote_processed_data_root function.")
+        ValueError("You are on dream. Please check the remote_processed_data_root function.")
 
 def make_symbolic_links(expIDs, data_type):
 
@@ -244,7 +247,7 @@ def get_ssh_settings():
         port = 10022
         username = 'machine-pipeline-access'
         key_path = '~/.ssh/id_ed25519_pipeline'
-        remote_queue_path = os.path.join('/home/adamranson/local_pipelines',computer_name,'queues/step1')
+        remote_queue_path = os.path.join('/data/common/local_pipelines',computer_name,'queues/step1')
     elif computer_name == 'dream':
         ValueError('Dream computer detected. No symbolic links made.')
     else:
