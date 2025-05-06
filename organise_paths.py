@@ -88,7 +88,7 @@ def s2p_launcher_command(run_as_user,userID, expID, suite2p_env, tif_path, s2p_o
 
     computer_name = socket.gethostname()
     #print(computer_name)
-    if computer_name == 'AdamDellXPS15'
+    if computer_name == 'AdamDellXPS15':
         # adam's laptop
         s2p_launcher = os.path.normpath('P://code//repos//preprocess_py//s2p_launcher_meso.py')
         cmd = [
