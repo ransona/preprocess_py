@@ -96,11 +96,11 @@ def main():
             return
     else:
         # debug mode
-        expID = '2025-04-13_03_ESYB007'
+        expID = '2025-04-24_03_ESYB008'
         userID = 'adamranson'        
-        tif_path = 'C:\\Pipeline\\Repository\\ESYB007\\2025-04-13_03_ESYB007\\P2\\R001'
-        output_path = 'C:\\Pipeline\\Repository_Processed\\adamranson\\data\\Repository\\ESYB007\\2025-04-13_03_ESYB007\\P2\\R001'
-        config_path = os.path.join('C:\\Pipeline\\s2p_configs\\adamranson\\1c1d1024px.npy')
+        tif_path = 'P:\\Pipeline\\Repository\\ESYB008\\2025-04-24_03_ESYB008\\P2\\R001'
+        output_path = 'P:\\Pipeline\\Repository_Processed\\adamranson\\data\\Repository\\ESYB008\\2025-04-24_03_ESYB008\\P2\\R001'
+        config_path = os.path.join('P:\\Pipeline\\s2p_configs\\adamranson\\1c1d1024px.npy')
         s2p_launcher_run(userID,expID,tif_path,output_path,config_path)
     
 
