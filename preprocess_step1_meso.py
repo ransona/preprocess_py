@@ -8,219 +8,224 @@ import pickle
 
 
 def run_preprocess_step1_meso(jobID,userID, expID, suite2p_config, runs2p, rundlc, runfitpupil): 
-    print('Starting job: ' + jobID)
-    print('--------------------------------------------------')
-    combining_experiments = False
+    try:
+        print('Starting job: ' + jobID)
+        print('--------------------------------------------------')
+        combining_experiments = False
 
-    queue_path = organise_paths.queue_path()
-    queued_command = pickle.load(open(os.path.join(queue_path,jobID), "rb"))
-    if not ',' in expID:
-        # then there's only one experiment ID
-        animalID, remote_repository_root, \
-            processed_root, exp_dir_processed, \
-                exp_dir_raw = organise_paths.find_paths(userID, expID)
-    else:
-        # multiple expIDs being processing in suite2p together
-        # make exp_dir_raw contain all data paths
-        # make expID the first one
-        combining_experiments = True
-        allExpIDs = expID.split(',')
-        # generate exp path for each expID
-        tif_path = []
-        # use first expID to get the base expID
-        _, _, _, exp_dir_processed, exp_dir_raw = organise_paths.find_paths(userID, allExpIDs[0])
-        for expID_each in allExpIDs:
-            # get all exp root dir paths
-            _, _, _, exp_dir_processed, exp_dir_raw = organise_paths.find_paths(userID, expID_each)
-            tif_path.append(exp_dir_raw)
-        exp_dir_raw_all = ','.join(tif_path)
-        # use first expID to know where to output data
-        _, _, _, exp_dir_processed, _ = organise_paths.find_paths(userID, allExpIDs[0])
+        queue_path = organise_paths.queue_path()
+        queued_command = pickle.load(open(os.path.join(queue_path,jobID), "rb"))
+        if not ',' in expID:
+            # then there's only one experiment ID
+            animalID, remote_repository_root, \
+                processed_root, exp_dir_processed, \
+                    exp_dir_raw = organise_paths.find_paths(userID, expID)
+        else:
+            # multiple expIDs being processing in suite2p together
+            # make exp_dir_raw contain all data paths
+            # make expID the first one
+            combining_experiments = True
+            allExpIDs = expID.split(',')
+            # generate exp path for each expID
+            tif_path = []
+            # use first expID to get the base expID
+            _, _, _, exp_dir_processed, exp_dir_raw = organise_paths.find_paths(userID, allExpIDs[0])
+            for expID_each in allExpIDs:
+                # get all exp root dir paths
+                _, _, _, exp_dir_processed, exp_dir_raw = organise_paths.find_paths(userID, expID_each)
+                tif_path.append(exp_dir_raw)
+            exp_dir_raw_all = ','.join(tif_path)
+            # use first expID to know where to output data
+            _, _, _, exp_dir_processed, _ = organise_paths.find_paths(userID, allExpIDs[0])
 
-    # make the output directory if it doesn't already exist
-    os.makedirs(exp_dir_processed, exist_ok = True)
+        # make the output directory if it doesn't already exist
+        os.makedirs(exp_dir_processed, exist_ok = True)
 
-    # get the list format lists of suite2p configs
-    suite2p_config = eval(suite2p_config)
+        # get the list format lists of suite2p configs
+        suite2p_config = eval(suite2p_config)
 
-    allOut = ''
-    if runs2p:
-        # ensure all symbolic links to data are organised
-        organise_paths.make_symbolic_links(expID, 's2p')
-        # 1) cycle through each path and roi folder running suite2p seperately
-        # make list of all scan paths
-        scanpath_names = []
-        # cycle through checking if folders exist for each scan path from 0 to 9
-        for i in range(10):
-            # check if folder exists with name P + i
-            path = os.path.join(exp_dir_raw, 'P' + str(i))
-            if os.path.exists(path):
-                # if it exists add to list
-                scanpath_names.append(path)                    
-        
-        # within each scan path folder check what roi folders exist
-        roi_folders = {}
-        for i_scanpath in range(len(scanpath_names)):
-            print('Starting scanpath ' + str(i_scanpath+1) + ' of ' + str(len(scanpath_names)))
-            # list all roi folders
-            roi_folders[i_scanpath] = []
-            # store in roi_folders[i_scanpath] all roi folders within the scanpath folder
-            roi_folders[i_scanpath] = sorted([f for f in os.listdir(scanpath_names[i_scanpath]) if os.path.isdir(os.path.join(scanpath_names[i_scanpath], f))])
-            # iterate through all roi folders
-            for i_roi in range(len(roi_folders[i_scanpath])):
-                print('Starting roi ' + str(i_roi+1) + ' of ' + str(len(roi_folders[i_scanpath])))
-                # form path the roi folder
-                tif_path = os.path.join(exp_dir_raw,scanpath_names[i_scanpath],roi_folders[i_scanpath][i_roi])
-                # form path to the s2p config file - First determine if there is a separate sweet 2P configuration for every ROI
-                if len(suite2p_config[i_scanpath]) > 1:
-                    # then there is a separate config for each roi
-                    # check if there are enough configs for each roi
-                    if len(suite2p_config[i_scanpath]) != len(roi_folders[i_scanpath]):
-                        raise Exception("Not enough suite2p configs for each roi folder")
-                    config_path = organise_paths.s2p_config_path(userID,suite2p_config[i_scanpath][i_roi])
-                else:
-                    # then there is only one config for all rois
-                    config_path = organise_paths.s2p_config_path(userID,suite2p_config[i_scanpath][0])
+        allOut = ''
+        if runs2p:
+            # ensure all symbolic links to data are organised
+            organise_paths.make_symbolic_links(expID, 's2p')
+            # 1) cycle through each path and roi folder running suite2p seperately
+            # make list of all scan paths
+            scanpath_names = []
+            # cycle through checking if folders exist for each scan path from 0 to 9
+            for i in range(10):
+                # check if folder exists with name P + i
+                path = os.path.join(exp_dir_raw, 'P' + str(i))
+                if os.path.exists(path):
+                    # if it exists add to list
+                    scanpath_names.append(path)                    
+            
+            # within each scan path folder check what roi folders exist
+            roi_folders = {}
+            for i_scanpath in range(len(scanpath_names)):
+                print('Starting scanpath ' + str(i_scanpath+1) + ' of ' + str(len(scanpath_names)))
+                # list all roi folders
+                roi_folders[i_scanpath] = []
+                # store in roi_folders[i_scanpath] all roi folders within the scanpath folder
+                roi_folders[i_scanpath] = sorted([f for f in os.listdir(scanpath_names[i_scanpath]) if os.path.isdir(os.path.join(scanpath_names[i_scanpath], f))])
+                # iterate through all roi folders
+                for i_roi in range(len(roi_folders[i_scanpath])):
+                    print('Starting roi ' + str(i_roi+1) + ' of ' + str(len(roi_folders[i_scanpath])))
+                    # form path the roi folder
+                    tif_path = os.path.join(exp_dir_raw,scanpath_names[i_scanpath],roi_folders[i_scanpath][i_roi])
+                    # form path to the s2p config file - First determine if there is a separate sweet 2P configuration for every ROI
+                    if len(suite2p_config[i_scanpath]) > 1:
+                        # then there is a separate config for each roi
+                        # check if there are enough configs for each roi
+                        if len(suite2p_config[i_scanpath]) != len(roi_folders[i_scanpath]):
+                            raise Exception("Not enough suite2p configs for each roi folder")
+                        config_path = organise_paths.s2p_config_path(userID,suite2p_config[i_scanpath][i_roi])
+                    else:
+                        # then there is only one config for all rois
+                        config_path = organise_paths.s2p_config_path(userID,suite2p_config[i_scanpath][0])
 
-                # check if a suite2p env has been set - if the suite2p from the launching users home will be used
-                if 'suite2p_env' in queued_command['config']:
-                    print('Suite2p env found')
-                    print('Running as user ' + userID)
-                    suite2p_env = queued_command['config']['suite2p_env']
-                    run_s2p_as_usr = True
-                else:
-                    print('No suite2p env found - running in default adamranson:''suite2p env''')
-                    suite2p_env = 'suite2p'
-                    run_s2p_as_usr = False
-                
-                current_scanpath_name = os.path.basename(scanpath_names[i_scanpath])
-                s2p_output_path = os.path.join(exp_dir_processed,current_scanpath_name,roi_folders[i_scanpath][i_roi])
-                # make the output directory if it doesn't already exist
-                os.makedirs(s2p_output_path, exist_ok = True)
+                    # check if a suite2p env has been set - if the suite2p from the launching users home will be used
+                    if 'suite2p_env' in queued_command['config']:
+                        print('Suite2p env found')
+                        print('Running as user ' + userID)
+                        suite2p_env = queued_command['config']['suite2p_env']
+                        run_s2p_as_usr = True
+                    else:
+                        print('No suite2p env found - running in default adamranson:''suite2p env''')
+                        suite2p_env = 'suite2p'
+                        run_s2p_as_usr = False
+                    
+                    current_scanpath_name = os.path.basename(scanpath_names[i_scanpath])
+                    s2p_output_path = os.path.join(exp_dir_processed,current_scanpath_name,roi_folders[i_scanpath][i_roi])
+                    # make the output directory if it doesn't already exist
+                    os.makedirs(s2p_output_path, exist_ok = True)
 
-                # check if combining several experiments and if so pass all paths to s2p
-                if combining_experiments:
-                    # then pass all paths to s2p
-                    exp_dir_raw_roi = exp_dir_raw_all
-                    # cycle through adding path and roi folder names to base experiment path
-                    for i in range(len(exp_dir_raw_roi)):
-                        exp_dir_raw_roi[i] = os.path.join(exp_dir_raw_roi[i],roi_folders[i_scanpath][i_roi])
-                        # check it exists (validation of experiments being combined being all uniform
-                        if not os.path.exists(exp_dir_raw_roi[i]):
-                            raise Exception("Experiment " + exp_dir_raw_roi[i] + " does not exist, indicating the experiments being combined are not uniform")
-                    # pass the paths to s2p
-                    tif_path = ','.join(exp_dir_raw_roi)
+                    # check if combining several experiments and if so pass all paths to s2p
+                    if combining_experiments:
+                        # then pass all paths to s2p
+                        exp_dir_raw_roi = exp_dir_raw_all
+                        # cycle through adding path and roi folder names to base experiment path
+                        for i in range(len(exp_dir_raw_roi)):
+                            exp_dir_raw_roi[i] = os.path.join(exp_dir_raw_roi[i],roi_folders[i_scanpath][i_roi])
+                            # check it exists (validation of experiments being combined being all uniform
+                            if not os.path.exists(exp_dir_raw_roi[i]):
+                                raise Exception("Experiment " + exp_dir_raw_roi[i] + " does not exist, indicating the experiments being combined are not uniform")
+                        # pass the paths to s2p
+                        tif_path = ','.join(exp_dir_raw_roi)
 
-                
-                if run_s2p_as_usr:
-                    cmd = organise_paths.s2p_launcher_command(run_as_user = True, userID = userID, expID = expID, suite2p_env = suite2p_env, tif_path = tif_path, s2p_output_path = s2p_output_path, config_path = config_path)
-                    #cmd = ['sudo', '-u', userID, '/opt/scripts/conda-run.sh',suite2p_env,'python',s2p_launcher,userID,expID,tif_path,config_path]
-                else:
-                    cmd = organise_paths.s2p_launcher_command(run_as_user = False, userID = userID, expID = expID, suite2p_env = suite2p_env, tif_path = tif_path, s2p_output_path = s2p_output_path, config_path = config_path)
-                    #cmd = ['/opt/scripts/conda-run.sh','suite2p','python',s2p_launcher,userID,expID,tif_path,s2p_output_path,config_path]
+                    
+                    if run_s2p_as_usr:
+                        cmd = organise_paths.s2p_launcher_command(run_as_user = True, userID = userID, expID = expID, suite2p_env = suite2p_env, tif_path = tif_path, s2p_output_path = s2p_output_path, config_path = config_path)
+                        #cmd = ['sudo', '-u', userID, '/opt/scripts/conda-run.sh',suite2p_env,'python',s2p_launcher,userID,expID,tif_path,config_path]
+                    else:
+                        cmd = organise_paths.s2p_launcher_command(run_as_user = False, userID = userID, expID = expID, suite2p_env = suite2p_env, tif_path = tif_path, s2p_output_path = s2p_output_path, config_path = config_path)
+                        #cmd = ['/opt/scripts/conda-run.sh','suite2p','python',s2p_launcher,userID,expID,tif_path,s2p_output_path,config_path]
 
-                print('Starting S2P launcher...')  
+                    print('Starting S2P launcher...')  
 
-                log_path = organise_paths.log_path(jobID[0:-1-6] + '.txt')
-                #subprocess.run(cmd, shell=True)
-                # with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+                    log_path = organise_paths.log_path(jobID[0:-1-6] + '.txt')
+                    # make log folder if doesn't exist
+                    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+                    #subprocess.run(cmd, shell=True)
+                    # with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
 
-                with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1) as proc:
-                    # Read the output line by line and process it
-                    for line in proc.stdout:
-                        print(line)
-                        allOut = allOut + line
-                        sys.stdout.flush()
-                        with open(log_path, 'a') as file:
-                            file.write(line)
+                    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1) as proc:
+                        # Read the output line by line and process it
+                        for line in proc.stdout:
+                            print(line)
+                            allOut = allOut + line
+                            sys.stdout.flush()
+                            with open(log_path, 'a') as file:
+                                file.write(line)
 
-                    # Read the error output line by line and process it
-                    error_output = ""
-                    for line in proc.stderr:
-                        print("Error: " + line)
-                        error_output += line
-                        sys.stdout.flush()
-                        with open(log_path, 'a') as file:
-                            file.write(line)
+                        # Read the error output line by line and process it
+                        error_output = ""
+                        for line in proc.stderr:
+                            print("Error: " + line)
+                            error_output += line
+                            sys.stdout.flush()
+                            with open(log_path, 'a') as file:
+                                file.write(line)
 
-                    proc.wait()
-                    if proc.returncode != 0:
-                        with open(log_path, 'w') as file:
-                            file.write(allOut)
-                        raise Exception("An error occurred during the execution of suite2p")
-                
-                x=0
+                        proc.wait()
+                        if proc.returncode != 0:
+                            with open(log_path, 'w') as file:
+                                file.write(allOut)
+                            raise Exception("An error occurred during the execution of suite2p")
+                    
+                    x=0
 
 
-    if rundlc:
-        # run DLC
-        dlc_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/dlc_launcher.py')
-        print('Running DLC launcher...')
-        # cmd = ['conda','run' , '--no-capture-output','--name','dlc-cuda','python',dlc_launcher,userID,expID]
-        cmd = ['/opt/scripts/conda-run.sh','dlc-cuda','python',dlc_launcher,userID,expID]
-        # Run the command
-        #with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
-        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
-            # Read the output line by line and process it
-            for line in proc.stdout:
-                print(line)
-                allOut = allOut + line
-                sys.stdout.flush()
-                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
-                    file.write(line)
+        if rundlc:
+            # run DLC
+            dlc_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/dlc_launcher.py')
+            print('Running DLC launcher...')
+            # cmd = ['conda','run' , '--no-capture-output','--name','dlc-cuda','python',dlc_launcher,userID,expID]
+            cmd = ['/opt/scripts/conda-run.sh','dlc-cuda','python',dlc_launcher,userID,expID]
+            # Run the command
+            #with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+                # Read the output line by line and process it
+                for line in proc.stdout:
+                    print(line)
+                    allOut = allOut + line
+                    sys.stdout.flush()
+                    with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+                        file.write(line)
 
-            # # Read the error output line by line and process it
-            # error_output = ""
-            # for line in proc.stderr:
-            #     print("Error: " + line)
-            #     error_output += line
-            #     with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
-            #         file.write(line)
+                # # Read the error output line by line and process it
+                # error_output = ""
+                # for line in proc.stderr:
+                #     print("Error: " + line)
+                #     error_output += line
+                #     with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+                #         file.write(line)
 
-            proc.wait()
-            if proc.returncode != 0:
-                # with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
-                #     file.write(allOut)
-                raise Exception("An error occurred during the execution of dlc")
+                proc.wait()
+                if proc.returncode != 0:
+                    # with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
+                    #     file.write(allOut)
+                    raise Exception("An error occurred during the execution of dlc")
 
-        # cmd = 'conda run --no-capture-output --name dlc-cuda python '+ dlc_launcher +' "' + userID + '" "' + expID + '"'
-        # subprocess.run(cmd, shell=True)
+            # cmd = 'conda run --no-capture-output --name dlc-cuda python '+ dlc_launcher +' "' + userID + '" "' + expID + '"'
+            # subprocess.run(cmd, shell=True)
 
-    if runfitpupil:
-        # run code to 
-        # run code to take dlc output and fit circle to pupil etc
-        fit_pupil_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/preprocess_pupil.py')
-        print('Running pupil fit launcher...')
-        cmd = ['conda','run' , '--no-capture-output','--name','sci','python',fit_pupil_launcher,userID,expID]
-        # Run the command
-        #with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
-        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1) as proc:
-            # Read the output line by line and process it
-            for line in proc.stdout:
-                print(line)
-                allOut = allOut + line
-                sys.stdout.flush()
-                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
-                    file.write(line)
+        if runfitpupil:
+            # run code to 
+            # run code to take dlc output and fit circle to pupil etc
+            fit_pupil_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/preprocess_pupil.py')
+            print('Running pupil fit launcher...')
+            cmd = ['conda','run' , '--no-capture-output','--name','sci','python',fit_pupil_launcher,userID,expID]
+            # Run the command
+            #with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1) as proc:
+                # Read the output line by line and process it
+                for line in proc.stdout:
+                    print(line)
+                    allOut = allOut + line
+                    sys.stdout.flush()
+                    with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+                        file.write(line)
 
-            # Read the error output line by line and process it
-            error_output = ""
-            for line in proc.stderr:
-                print("Error: " + line)
-                error_output += line
-                sys.stdout.flush()
-                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
-                    file.write(line)
+                # Read the error output line by line and process it
+                error_output = ""
+                for line in proc.stderr:
+                    print("Error: " + line)
+                    error_output += line
+                    sys.stdout.flush()
+                    with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+                        file.write(line)
 
-            proc.wait()
-            if proc.returncode != 0:
-                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
-                    file.write(allOut)
-                raise Exception("An error occurred during the execution of pupil fit")
+                proc.wait()
+                if proc.returncode != 0:
+                    with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
+                        file.write(allOut)
+                    raise Exception("An error occurred during the execution of pupil fit")
 
-    # # save command line output
-    # with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
-    #     file.write(allOut)
+        # # save command line output
+        # with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+        #     file.write(allOut)
+    except Exception as e:
+        print(f"An error occurred in run_preprocess_step1_meso: {e}")
 
 # for debugging:
 def main():
