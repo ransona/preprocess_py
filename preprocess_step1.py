@@ -210,9 +210,9 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
             run_s2p_as_usr = False
         
         if run_s2p_as_usr:
-            cmd = ['sudo', '-u', userID, '/opt/scripts/conda-run.sh',suite2p_env,'python',s2p_launcher,userID,expID,tif_path,config_path]
+            cmd = ['sudo', '-u', userID, '/opt/scripts/conda-run.sh',suite2p_env,'python','-u',s2p_launcher,userID,expID,tif_path,config_path]
         else:
-            cmd = ['/opt/scripts/conda-run.sh','suite2p','python',s2p_launcher,userID,expID,tif_path,config_path]
+            cmd = ['/opt/scripts/conda-run.sh','suite2p','python','-u',s2p_launcher,userID,expID,tif_path,config_path]
 
         print('Starting S2P launcher...')
         #subprocess.run(cmd, shell=True)

@@ -6,6 +6,7 @@ import suite2p
 import organise_paths
 import numpy as np
 import os
+import shutil
 
 def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
     # determine if several experiments are being run together or not:
@@ -22,6 +23,13 @@ def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
     print('ExpID = ' + expID)
     animalID, remote_repository_root, processed_root, exp_dir_processed, exp_dir_raw = organise_paths.find_paths(userID, allExpIDs[0])     
 
+    # clear fast disk data if present
+    # If it exists, delete it
+    if os.path.exists('/data/fast/s2p/'):
+        shutil.rmtree('/data/fast/s2p/')
+    # Recreate an empty folder
+    os.makedirs('/data/fast/s2p/')
+    
     # load the saved config
     ops = np.load(config_path,allow_pickle=True)
     ops = ops.item()
@@ -32,7 +40,7 @@ def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
             'data_path': allTifPaths,
             'save_path0': output_path,
             #'save_disk': exp_dir_processed, # where bin is moved after processing
-            #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
+            'fast_disk': os.path.join('/data/fast/s2p/')
             }
         ops['functional_chan']=1
         suite2p.run_s2p(ops=ops, db=db)  
@@ -40,9 +48,9 @@ def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
         # can be improved to avoid registering twice and making two copies of data!
         db = {
             'data_path': allTifPaths,
-            'save_path0': os.path.join(output_path,'ch2')
+            'save_path0': os.path.join(output_path,'ch2'),
             #'save_disk': exp_dir_processed, # where bin is moved after processing
-            #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
+            'fast_disk': os.path.join('/data/fast/s2p/')
             }
         ops['functional_chan']=2
         suite2p.run_s2p(ops=ops, db=db)    
@@ -53,7 +61,7 @@ def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
             'data_path': allTifPaths,
             'save_path0': output_path,
             #'save_disk': exp_dir_processed, # where bin is moved after processing
-            #'fast_disk': os.path.join('/data/fast',userID, animalID, allExpIDs[0]),
+            'fast_disk': os.path.join('/data/fast/s2p/')
             }
         suite2p.run_s2p(ops=ops, db=db)  
             

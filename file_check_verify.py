@@ -48,6 +48,7 @@ def verify_file_data(file_data_stem, new_root_path, output_root_path):
                     if actual_size == size:
                         total_size += size
                         file_info_list.append((new_path, stored_hash))
+                        print('.', end='', flush=True)
                     else:
                         print(f"Size mismatch for {new_path}: expected {size} bytes, got {actual_size} bytes")
                         all_files_ok = False
@@ -55,11 +56,14 @@ def verify_file_data(file_data_stem, new_root_path, output_root_path):
                     print(f"File not found: {new_path}")
                     all_files_ok = False
 
+        
         if all_files_ok and total_size == stored_total_size:
+            print('All file sizes correct - checking hash')
             for new_path, stored_hash in file_info_list:
                 # could be improved to not hash files which have already passed the hash test
                 # although if the size is correct most likely the hash is too
                 actual_hash = hash_file(new_path)
+                print('.', end='', flush=True)
                 if actual_hash != stored_hash:
                     print(f"Hash mismatch for {new_path}: expected {stored_hash}, got {actual_hash}")
                     all_files_ok = False
