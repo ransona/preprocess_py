@@ -156,10 +156,10 @@ def run_preprocess_step1_meso(jobID,userID, expID, suite2p_config, runs2p, rundl
 
     if rundlc:
         # run DLC
-        dlc_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/dlc_launcher.py')
+        dlc_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/dlc_launcher_meso.py')
         print('Running DLC launcher...')
         # cmd = ['conda','run' , '--no-capture-output','--name','dlc-cuda','python',dlc_launcher,userID,expID]
-        cmd = ['/opt/scripts/conda-run.sh','dlc-cuda','python',dlc_launcher,userID,expID]
+        cmd = ['/opt/scripts/conda-run.sh','DLC2','python',dlc_launcher,userID,expID]
         # Run the command
         #with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
         with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
