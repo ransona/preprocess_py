@@ -1,4 +1,5 @@
 # take dlc pipil output and fits circle to pupil etc
+import cProfile
 import sys
 import cv2
 import matplotlib.pyplot as plt
@@ -12,6 +13,8 @@ import pandas as pd
 import pickle
 import organise_paths
 import shutil
+from scipy.ndimage import binary_dilation, binary_erosion
+from PIL import Image, ImageDraw
 
 def preprocess_pupil_run(userID, expID):
     print('Starting preprocess_pupil_run...')
@@ -31,8 +34,8 @@ def preprocess_pupil_run(userID, expID):
 
     print('Starting ' + expID)
 
-    dlc_filenames = [expID + '_eye1_leftDLC_resnet50_Trial_newMay19shuffle1_1030000.csv',
-                    expID + '_eye1_rightDLC_resnet50_Trial_newMay19shuffle1_1030000.csv']
+    dlc_filenames = [f'{expID}_eye1_leftDLC_Resnet50_EYEMay8shuffle1_snapshot_010.csv',
+                    f'{expID}_eye1_rightDLC_Resnet50_EYEMay8shuffle1_snapshot_010.csv']
 
     vid_filenames = [expID + '_eye1_left.avi',
                     expID + '_eye1_right.avi']
@@ -67,9 +70,10 @@ def preprocess_pupil_run(userID, expID):
         # eye x and eye y are always needed as a minimum to process a frame so
         # we ensure below that these coordinates all have confidence > 0.8
         eyeMinConfid = np.min(dlc_data.loc[:,26::3], axis=1)
-        #ret, firstFrame = v.read()
-        #frameSize = np.squeeze(firstFrame[:,:,0]).shape
-        frameSize = [478,742]
+        v = cv2.VideoCapture(videoPath)
+        ret, firstFrame = v.read()
+        firstFrame = firstFrame[:,:,0]
+        frameSize = firstFrame.shape
         # choose approximate eye area - points outside this will be considered
         # invalid
         roiLeft = np.median(eyeX[:,2],0).astype(int)
@@ -97,8 +101,8 @@ def preprocess_pupil_run(userID, expID):
         if leftLimit < 0: leftLimit = 0
         if rightLimit > frameSize[1]: rightLimit = frameSize[1]
         validRegionMask[topLimit:bottomLimit,leftLimit:rightLimit] = 1
-        #plt.figure()
-        #plt.imshow(validRegionMask)
+        # plt.figure()
+        # plt.imshow(validRegionMask)
         # calc some average values for eye to be used for QC later
         eyeWidth = (np.median(eyeX[:,0])-np.median(eyeX[:,2]))
         # clip coordinates to frame size
@@ -149,30 +153,42 @@ def preprocess_pupil_run(userID, expID):
             # confirm all 4 eye corners are within expected region AND that the smallest of 
             # the mid-eyelid to lat-eye corner distances is more than 30% of eye width (it
             # should be about 50%)
-            if np.min(pointsValid) == 1 and (min_corner_middle_distance / eyeWidth) > 0.30:
+            if np.min(pointsValid) == 1: # and (min_corner_middle_distance / eyeWidth) > 0.30:
+                # Extract and expand polygon vertices
+                x_coords = eyeX[iFrame, [0, 1, 2, 3, 0]] + np.array([40, 0, -40, 0, 40])
+                y_coords = eyeY[iFrame, [0, 1, 2, 3, 0]] + np.array([0, -40, 0, +40, 0])
 
-                # fit two parabolas - one for each eye lid
-                # points:
-                # 1 = lateral / 2 = sup / 3 = medial / 4 = inf
-                topLid = np.polyfit(eyeX[iFrame, [0, 1, 2]], eyeY[iFrame, [0, 1, 2]], 2)
-                botLid = np.polyfit(eyeX[iFrame, [0, 3, 2]], eyeY[iFrame, [0, 3, 2]], 2)
-                # generate points
-                xVals = np.linspace(eyeX[iFrame, 0], eyeX[iFrame, 2],20)
-                # for upper lid
-                yVals = topLid[0] * xVals**2 + topLid[1] * xVals + topLid[2]
-                # for lower lid
-                yVals = np.concatenate([yVals, botLid[0] * np.flipud(xVals)**2 + botLid[1] * np.flipud(xVals) + botLid[2]])
-                xVals = np.concatenate([xVals, np.flipud(xVals)])
-                # add points to eyeDat to be used later for plotting eye
-                eyeDat['eye_lid_x'][iFrame,:] = xVals.astype(int)
-                eyeDat['eye_lid_y'][iFrame,:] = yVals.astype(int)   
-                # check if y values
-                # make a poly mask using the points
-                rr, cc = polygon(yVals, xVals)
-                eyeMask = np.zeros(frameSize)
-                eyeMask[rr, cc] = 1
-                # plt.figure()
-                # plt.imshow(eyeMask)
+                # Create mask same size as firstFrame
+                height, width = firstFrame.shape
+                mask_img = Image.new('L', (width, height), 0)
+                draw = ImageDraw.Draw(mask_img)
+
+                # Draw filled polygon
+                polygon = list(zip(map(float, x_coords), map(float, y_coords)))
+                draw.polygon(polygon, outline=1, fill=1)
+                polygon_mask = np.array(mask_img, dtype=bool)
+
+                # Extract perimeter using binary difference of mask's edges
+                edges_y, edges_x = np.where(np.logical_xor(polygon_mask, binary_erosion(polygon_mask)))
+                coords = np.column_stack((edges_y, edges_x))
+                n = len(coords)
+
+                # Sample 40 perimeter points
+                if n >= 40:
+                    idx = np.linspace(0, n - 1, 40, dtype=int)
+                    sampled = coords[idx]
+                else:
+                    reps = int(np.ceil(40 / n))
+                    tiled = np.tile(coords, (reps, 1))
+                    sampled = tiled[:40]
+
+                y_perim, x_perim = sampled[:, 0], sampled[:, 1]
+
+                eyeDat['eye_lid_x'][iFrame,:] = x_perim
+                eyeDat['eye_lid_y'][iFrame,:] = y_perim
+
+                eyeMask = polygon_mask.astype(np.uint8)
+
                 # check if each pupil point is in the eye mask and exclude it if not
                 # to do this convert x y coordinates 
                 pupilIdx = np.ravel_multi_index([[pupilY[iFrame].astype(int)], [pupilX[iFrame].astype(int)]], frameSize)
@@ -196,6 +212,72 @@ def preprocess_pupil_run(userID, expID):
                     eyeDat['y'].append(yCenter)
                     eyeDat['radius'].append(radius)
 
+                def sample_top_bottom_arcs(perimeter_mask, n_each=20):
+                    # 1) get all (row, col) perimeter coords
+                    coords = np.column_stack(np.nonzero(perimeter_mask))
+                    # 2) compute centroid
+                    centroid = coords.mean(axis=0)   # [centroid_row, centroid_col]
+
+                    # 3) for each point compute a “dy, dx” vector from centroid,
+                    #    and its angle in Cartesian coords (y inverted so up is +dy)
+                    dy = centroid[0] - coords[:, 0]
+                    dx = coords[:, 1] - centroid[1]
+                    angles = np.arctan2(dy, dx)      # range (–π, +π]
+
+                    # 4) split into top (dy ≥ 0) and bottom (dy < 0)
+                    top_mask    = dy >= 0
+                    bottom_mask = dy <  0
+
+                    top_coords    = coords[top_mask]
+                    top_angles    = angles[top_mask]
+                    bottom_coords = coords[bottom_mask]
+                    bottom_angles = angles[bottom_mask]
+
+                    # 5) sort each half by angle so they run smoothly along the arc
+                    #    – Top arc: angles go from 0 (right) up to π (left), so reverse for left→right
+                    top_sorted    = top_coords[np.argsort(top_angles)[::-1]]
+                    #    – Bottom arc: angles go from –π (left) up to 0 (right)
+                    bottom_sorted = bottom_coords[np.argsort(bottom_angles)]
+
+                    # 6) resample exactly n_each points from each sorted list
+                    def resample(arr):
+                        m = len(arr)
+                        if m >= n_each:
+                            idx = np.linspace(0, m-1, n_each, dtype=int)
+                            return arr[idx]
+                        else:
+                            # if too few, tile and truncate
+                            reps = int(np.ceil(n_each / m))
+                            tiled = np.tile(arr, (reps, 1))
+                            return tiled[:n_each]
+
+                    top20    = resample(top_sorted)
+                    bottom20 = resample(bottom_sorted)
+
+                    # 7) return as x,y each
+                    y_top,    x_top    = top20[:, 0],    top20[:, 1]
+                    y_bottom, x_bottom = bottom20[:, 0], bottom20[:, 1]
+                    return x_top, y_top, x_bottom, y_bottom
+
+                #x_top, y_top, x_bottom, y_bottom = sample_top_bottom_arcs(perimeter_mask)
+
+                if displayOn:
+                    # plot the fitted circle
+                    plt.figure()
+                    plt.imshow(firstFrame, cmap='gray')
+                    ax = plt.gca()
+                    circle = plt.Circle((xCenter, yCenter), radius, color='r', fill=False)
+                    ax.add_patch(circle)
+                    ax.set_aspect('equal')   # ensure circle isn’t distorted
+                    plt.scatter(x_perim, y_perim, s=1, c='b', label='Perimeter')
+                    #plt.scatter(x_top, y_top, s=1, c='r', label='Top arc')
+                    #plt.scatter(x_bottom, y_bottom, s=1, c='b', label='Bottom arc')
+                    # plt.plot(x_coords, y_coords, 'g-o', label='Original polygon')
+                    # plt.scatter(x_perim, y_perim, s=1, c='b', label='Dilated perimeter')
+                    plt.legend()
+                    plt.show()
+
+
                 # default to quality control passed
                 eyeDat['qc'].append(0)
 
@@ -204,12 +286,8 @@ def preprocess_pupil_run(userID, expID):
 
                 if iFrame==0:
                     # initialise data structure
-                    eyeDat['topLid']=(topLid[np.newaxis,:])
-                    eyeDat['botLid']=(botLid[np.newaxis,:])
                     eyeDat['inEye']=(inEye[np.newaxis,:])
                 else:
-                    eyeDat['topLid']=np.concatenate((eyeDat['topLid'],topLid[np.newaxis,:]),axis=0)
-                    eyeDat['botLid']=np.concatenate((eyeDat['botLid'],botLid[np.newaxis,:]),axis=0)
                     eyeDat['inEye']=np.concatenate((eyeDat['inEye'],inEye[np.newaxis,:]),axis=0)
 
                 if iFrame % displayInterval == 0:
@@ -225,14 +303,10 @@ def preprocess_pupil_run(userID, expID):
                 eyeDat['radius'].append(np.nan)
                 if iFrame==0:
                     # initialise data structure
-                    eyeDat['topLid']=np.full([1,3],np.nan)
-                    eyeDat['botLid']=np.full([1,3],np.nan)
                     eyeDat['inEye']=np.full([1,8],np.nan)
                 else:
                     # add a row of nans of the right shape (width)
                     try:
-                        eyeDat['topLid']=np.concatenate((eyeDat['topLid'],np.full((1,eyeDat['topLid'].shape[1]),np.full([1,3],np.nan))),axis=0)
-                        eyeDat['botLid']=np.concatenate((eyeDat['botLid'],np.full((1,eyeDat['botLid'].shape[1]),np.full([1,3],np.nan))),axis=0)
                         eyeDat['inEye']=np.concatenate((eyeDat['inEye'],np.full((1,eyeDat['inEye'].shape[1]),np.full([1,8],np.nan))),axis=0)
                     except:
                         z = 0
@@ -280,7 +354,15 @@ def main():
         print('Parameters received via debug mode')
         userID = 'adamranson'
         expID = '2025-04-13_01_ESYB007'
-    preprocess_pupil_run(userID, expID)    
+
+    #profiler = cProfile.Profile()
+    #profiler.enable()
+
+    preprocess_pupil_run(userID, expID)
+
+    #profiler.disable()
+    #profiler.print_stats(sort='time')  # or 'cumulative', 'calls', etc.
+       
 
 if __name__ == "__main__":
     main()
