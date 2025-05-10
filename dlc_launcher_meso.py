@@ -1,9 +1,9 @@
-from conceivable import thread_limit
+#from conceivable import thread_limit
 import os
 import organise_paths
 import sys 
 import cv2
-import deeplabcut
+from deeplabcut import analyze_videos
 import time
 
 def crop_vids(userID, expID): 
@@ -147,14 +147,14 @@ def dlc_launcher_run(userID, expID):
     destfolder = exp_dir_processed
     print('Starting left eye video...')
     #deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, trainingsetindex=0, gputouse=None, save_as_csv=True, destfolder=destfolder, dynamic=(True, .5, 10))
-    deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, gputouse=0, save_as_csv=True, destfolder=destfolder)
+    analyze_videos(config_path, videos, videotype='avi', shuffle=1, gputouse=0, save_as_csv=True, destfolder=destfolder)
     #deeplabcut.create_labeled_video(config_path, videos, save_frames = True)
 
     videos= os.path.join(exp_dir_processed,(expID+'_eye1_right.avi'))
     destfolder = exp_dir_processed
     print('Starting right eye video...')
     #deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, trainingsetindex=0, gputouse=None, save_as_csv=True, destfolder=destfolder, dynamic=(True, .5, 10))
-    deeplabcut.analyze_videos(config_path, videos, videotype='avi', shuffle=1, gputouse=0, save_as_csv=True, destfolder=destfolder)
+    analyze_videos(config_path, videos, videotype='avi', shuffle=1, gputouse=0, save_as_csv=True, destfolder=destfolder)
     #deeplabcut.create_labeled_video(config_path, videos, save_frames = True)
 
 # for debugging:
@@ -166,7 +166,7 @@ def main():
         expID = sys.argv[2]
     except:
         # debug mode
-        expID = '2023-04-04_04_ESMT124'
+        expID = '2025-04-13_01_ESYB007'
         userID = 'adamranson'
     start_time = time.time()
     dlc_launcher_run(userID, expID)
