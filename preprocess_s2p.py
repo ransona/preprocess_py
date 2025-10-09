@@ -1,15 +1,39 @@
 import os
 import numpy as np
 import pandas as pd
+import dcnv
 from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import HuberRegressor
+from scipy.ndimage import minimum_filter1d, maximum_filter1d
+from scipy.ndimage import percentile_filter
+from numpy.lib.stride_tricks import sliding_window_view
 from scipy import interpolate
 from scipy import signal
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 import pickle
 import organise_paths
+from tqdm import tqdm
+from joblib import Parallel, delayed
+# OASIS imports
+import warnings
+warnings.filterwarnings("ignore", module="oasis")
+from oasis.functions import deconvolve
+from oasis.functions import gen_data, gen_sinusoidal_data, estimate_parameters
+from oasis.plotting import simpleaxis
+from oasis.oasis_methods import oasisAR1, oasisAR2
+import gc
 
-def run_preprocess_s2p(userID, expID):
+import os
+
+# info:
+# spike deconvolution:
+# this is performed when suite2p runs but it produces a spike vector which is proportional to the F signal, not dF/F.
+# to remedy this, here we calculate dF/F and run spike deconvolution on dF/F traces. note that values < 0 in dF/F
+# trace will produce zero spike rate by algorithm, and therefore baselining such that estimated resting state has 
+# mean = 0 means that a large part of the trace during baseline can not produce spikes. this seems to be how the 
+
+def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
     animalID, remote_repository_root, \
     processed_root, exp_dir_processed, \
         exp_dir_raw = organise_paths.find_paths(userID, expID)
@@ -18,7 +42,6 @@ def run_preprocess_s2p(userID, expID):
     # load the pipeline command configuration file
     with open(os.path.join(exp_dir_processed,'step2_config.pickle'), "rb") as file: 
         step2_config = pickle.load(file)
-
 
     # load timeline
     Timeline = loadmat(os.path.join(exp_dir_raw, expID + '_Timeline.mat'))
@@ -37,25 +60,46 @@ def run_preprocess_s2p(userID, expID):
     else:
         subtract_overall_frame = subtract_overall_frame_config
 
+    # Neuropil weight used is in this priority order:
+    # 1. provided as argument to function
+    # 2. provided in config file
+    # 3. default to 0.7
     # get the neuropil coefficient from config if present or default to 0.7
-    neuropil_coeff_config = step2_config.get('settings', {}).get('neuropil_coeff')
-    # Initialize neuropilWeight with a default two-element list
-    if neuropil_coeff_config is None:
-        neuropilWeight = [0.7, 0.7]  # Default values if neuropil_coeff_config is not provided
-    elif isinstance(neuropil_coeff_config, float):
-        neuropilWeight = [neuropil_coeff_config, neuropil_coeff_config]  # Duplicate float if single value
-    elif isinstance(neuropil_coeff_config, (list, tuple)):
-        if len(neuropil_coeff_config) == 1:
-            neuropilWeight = [neuropil_coeff_config[0], neuropil_coeff_config[0]]  # Duplicate single element
-        else:
-            neuropilWeight = list(neuropil_coeff_config[:2])  # Take the first two elements if it's longer
+    if neuropil_coeff_config is not np.nan:
+        # provided as argument to function 
+        neuropilWeight = neuropil_coeff_config
+        print(f"Using neuropil weight provided as argument to function: {neuropilWeight}")
     else:
-        raise TypeError("Unexpected type for neuropil_coeff_config. Expected float, list, or tuple.")
+        # attettempt to get from config file
+        neuropil_coeff_config = step2_config.get('settings', {}).get('neuropil_coeff')
+        # Initialize neuropilWeight with a default two-element list
+        if neuropil_coeff_config is None:
+            neuropilWeight = [0.7, 0.7]  # Default values if neuropil_coeff_config is not provided
+            print(f"Using default neuropil weight : {neuropilWeight}")
+        elif isinstance(neuropil_coeff_config, float):
+            neuropilWeight = [neuropil_coeff_config, neuropil_coeff_config]  # Duplicate float if single value
+            print(f"Using neuropil weight from config file: {neuropilWeight}")
+        elif isinstance(neuropil_coeff_config, (list, tuple)):
+            if len(neuropil_coeff_config) == 1:
+                neuropilWeight = [neuropil_coeff_config[0], neuropil_coeff_config[0]]  # Duplicate single element
+            else:
+                neuropilWeight = list(neuropil_coeff_config[:2])  # Take the first two elements if it's longer
+            print(f"Using neuropil weight from config file: {neuropilWeight}")
+        else:
+            raise TypeError("Unexpected type for neuropil_coeff_config. Expected float, list, or tuple.")
 
     # initiate these as dict:
     alldF = {}
+    allBaseline = {}
     allF = {}
-    allSpikes = {}
+    allSpikes = {}          # S2P spike output
+    all_oasis_spikes = {}   # OASIS spike output (computed below)
+    all_oasis_dF = {}       # OASIS inferred calcium (computed below)
+    # tokenised data
+    all_tokenised_oasis_dF = {}
+    all_tokenised_oasis_spikes = {}
+    all_tokenised_dF = {}   
+
     allDepths = {}
     allRoiPix = {}
     allRoiMaps = {}
@@ -94,7 +138,10 @@ def run_preprocess_s2p(userID, expID):
     #Timeline.rawDAQData(:,neuralFramesIdx)=ceil(Timeline.rawDAQData(:,neuralFramesIdx)/depthCount/acqNumAveragedFrames);
 
     # determine time of each frame
+    # frameTimes will be the mid-frame time
     frameTimes = np.squeeze(tl_time)[np.where(np.diff(neuralFramesPulses)==1)[0]]
+    # frame_start_times will be the time each frame trigger happens
+    frame_start_times = frameTimes.copy()
     # convert frame start times to midframe times
     time_diffs = time_diffs = np.append(np.diff(frameTimes), np.diff(frameTimes)[-1])
     frameTimes = frameTimes + (time_diffs/2)
@@ -109,7 +156,7 @@ def run_preprocess_s2p(userID, expID):
     outputTimes = np.arange(frameTimes[0]+1, frameTimes[-1]-1, 1/resampleFreq)
     print()
     for iCh in range(len(dataPath)):
-
+        accumulated_rois = 0
         for iDepth in range(depthCount):
             print('Starting Ch'+str(iCh)+' Depth '+str(iDepth))
             allRoiPix[iCh] = {}
@@ -118,15 +165,9 @@ def run_preprocess_s2p(userID, expID):
             #allRoiMaps[iCh][iDepth] = np.array([])
             allFOV[iCh] = {}
             # load s2p data
-            # check if the big npy file exists and if so load that (this is the non-trucated file, where as the truncated one is the one used for local curation using suite2p)
-            if os.path.exists(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'F_big.npy')):
-                Fall = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'F_big.npy'))
-                Fneu = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'Fneu_big.npy'))
-                spks = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'spks_big.npy'))
-            else:
-                Fall = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'F.npy'))
-                Fneu = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'Fneu.npy'))
-                spks = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'spks.npy'))
+            Fall = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'F.npy'))
+            Fneu = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'Fneu.npy'))
+            spks = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'spks.npy'))
 
             s2p_stat = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'stat.npy'), allow_pickle=True)
             s2p_ops = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'ops.npy'), allow_pickle=True).item()
@@ -176,6 +217,7 @@ def run_preprocess_s2p(userID, expID):
                 F_valid = np.squeeze(Fall[np.where(cellValid==1), :])
                 Spks_valid = np.squeeze(spks[np.where(cellValid==1), :])
             else:
+                # need to ensure these are 2d even if only one cell
                 Fneu_valid = np.squeeze(Fneu[np.where(cellValid==1), :])
                 F_valid = np.squeeze(Fall[np.where(cellValid==1), :])
                 Spks_valid = np.squeeze(spks[np.where(cellValid==1), :])
@@ -185,6 +227,8 @@ def run_preprocess_s2p(userID, expID):
 
             xpix, ypix = [], []
             validCellIDs = np.where(cellValid==1)[0]
+
+            # now get the x and ypix of each valid cell 
             # this is to later store the x and ypix of each valid cell
             for iCell in range(len(validCellIDs)):
                 currentCell = validCellIDs[iCell]
@@ -197,14 +241,22 @@ def run_preprocess_s2p(userID, expID):
                 Fneu_valid = Fneu_valid - np.tile(meanFrameTimecourse, (Fneu_valid.shape[0], 1))
                 F_valid = F_valid - np.tile(meanFrameTimecourse, (F_valid.shape[0], 1))
 
-            # neuropil subtraction
-            F_valid = F_valid - (Fneu_valid * neuropilWeight[iCh])
-
-            # Ensure min(corrected F) > 10
+            # offset whole video to ensure all F and neuropil values are at least 20.
             FMins = np.min(F_valid, axis=1)
-            # plt.subplot(1, 2, 1)
-            # plt.hist(FMins)
-            # plt.title(['Distribution of original', 'F values of ROIS'])
+            FMins_neuropil = np.min(Fneu_valid, axis=1)
+            min_all_rois = np.min([np.min(FMins), np.min(FMins_neuropil)])          
+            if min_all_rois < 20:
+                offset_value = min_all_rois * -1 + 20
+                F_valid = F_valid + offset_value
+                Fneu_valid = Fneu_valid + offset_value
+                print('Offsetting all F and neuropil by', offset_value, 'to ensure min > 20')
+
+            print('Subtracting neuropil with weight', neuropilWeight[iCh])
+            F_valid = F_valid - (Fneu_valid * neuropilWeight[iCh])
+            print('Done neuropil subtraction.')
+
+            # Check again the F values after neuropil subtraction are >=20
+            FMins = np.min(F_valid, axis=1)
 
             if np.min(FMins) < 20:
                 print('Frame mean and neuropil subtraction give ROIs with F < 20')
@@ -212,7 +264,7 @@ def run_preprocess_s2p(userID, expID):
                 F_valid = F_valid + (np.min(FMins)*-1)+20
                 
                 
-            FMins = np.min(F_valid, axis=1)
+            # FMins = np.min(F_valid, axis=1)
             # plt.subplot(1, 2, 2)
             # plt.hist(FMins)
             # plt.title(['Distribution of F values', 'of ROIS after forcing > 20'])
@@ -221,6 +273,7 @@ def run_preprocess_s2p(userID, expID):
             # do merge was removed from here - this was bill's code for merging correlated rois
             # what to do if not merging
             # make a roi map for the depth that can be used for longitudinal imaging etc
+            print("Creating ROI map...")
             roiPix = []
             # make a blank roi map
             roiMap = np.zeros(np.shape(s2p_ops['meanImg']))
@@ -230,15 +283,13 @@ def run_preprocess_s2p(userID, expID):
                 roiPix.append(np.ravel_multi_index((ypix[iRoi],xpix[iRoi]), np.shape(s2p_ops['meanImg'])))
                 # label ROI map
                 roiMap[ypix[iRoi], xpix[iRoi]] = iRoi+1
-            # plt.figure
-            # plt.imshow(roiMap), plt.show()
-            # crop F down to above established max frames
-            # F = F[:, :expFrameLength]
 
+            print("ROI map created.")
             # dF/F calculation
-            # this window should equate to 10 secs
-            smoothingWindowSize = (3 * frameRatePerPlane).round().astype(int)
-            baseline_min_window_size = (10 * frameRatePerPlane).round().astype(int)
+            print("Calculating dF/F baseline...")
+            # this window should equate to 30 secs
+            smoothingWindowSize = (1 * frameRatePerPlane).round().astype(int)
+            baseline_min_window_size = (30 * frameRatePerPlane).round().astype(int)
             kernel = np.ones((1, smoothingWindowSize)) / smoothingWindowSize
             smoothed = signal.convolve2d(F_valid, kernel, mode='same')
             # remove edge effects
@@ -249,61 +300,324 @@ def run_preprocess_s2p(userID, expID):
             smoothed[np.isnan(smoothed)] = np.max(smoothed)*2
             # sliding min:
             # compute the sliding window minimum with a window size of 3 over the second dimension
-            baseline = np.apply_along_axis(lambda smoothed: np.minimum.accumulate(np.concatenate([smoothed, np.repeat(smoothed[-1], baseline_min_window_size)]))[baseline_min_window_size:], axis=1, arr=smoothed)
+            # baseline = np.apply_along_axis(lambda smoothed: np.minimum.accumulate(np.concatenate([smoothed, np.repeat(smoothed[-1], baseline_min_window_size)]))[baseline_min_window_size:], axis=1, arr=smoothed)
+            # baseline = minimum_filter1d(smoothed, size=baseline_min_window_size, axis=1)
+            # baseline = np.apply_along_axis(lambda smoothed: np.pad(np.percentile(sliding_window_view(smoothed, baseline_min_window_size), 20, axis=1), (baseline_min_window_size - 1, 0), mode='edge'), axis=1, arr=smoothed)
+            # print("dF/F baseline calculated.")
 
-            # for iCell in range(10,20):
-            #     cell_to_plot = iCell
-            #     plt.figure(),plt.plot(F_valid[cell_to_plot,:]),plt.plot(min_x[cell_to_plot,:]), plt.show
-            #     plt.figure(),plt.imshow(dF, aspect='auto'),plt.colorbar(),plt.show()
 
-            # # calculate dF/F
+            def efficient_causal_sliding_percentile_2d(data, window, step=1, percentile=20):
+                """
+                Applies causal sliding percentile baseline correction across time axis for each neuron.
+                Input:
+                    data: np.ndarray of shape (neurons, time)
+                    window: window size (in samples)
+                    step: stride for percentile calculation
+                    percentile: which percentile to compute
+                Output:
+                    baseline: np.ndarray of shape (neurons, time)
+                """
+                neurons, T = data.shape
+                idx = np.arange(window - 1, T, step)
+                start_idx = idx - window + 1
+                valid = start_idx >= 0
+                idx = idx[valid]
+                start_idx = start_idx[valid]
+
+                # Preallocate output
+                baseline = np.zeros_like(data)
+
+                for n in range(neurons):
+                    # Extract sliding windows
+                    windows = np.array([data[n, i:j + 1] for i, j in zip(start_idx, idx)])
+                    p_values = np.percentile(windows, percentile, axis=1)
+
+                    # Interpolate to full length
+                    full_idx = np.arange(T)
+                    interp = np.interp(full_idx, idx, p_values)
+                    baseline[n] = interp
+
+                return baseline
+            baseline = efficient_causal_sliding_percentile_2d(data = smoothed, window = baseline_min_window_size, step=10, percentile=20) 
+            print("dF/F baseline2 calculated.")
+
+             # # calculate dF/F
+            print("Calculating dF/F...")           
             dF = (F_valid-baseline) / baseline
+            print("dF/F calculated.")
+
+            ### OASIS 
+            # # debugging deconvolution: 
+            # num_cells_plot = 20
+            # cells_to_plot = (np.linspace(0, F_valid.shape[0]-1,num_cells_plot)).astype(int)
+            # all_g = []
+            # for iCell in cells_to_plot:
+            #     y = dF[iCell,:]+10
+            #     c, s, b, g, lam = deconvolve(y, penalty=1)
+            #     s_thresholded = s.copy()
+            #     s_thresholded[s<0.05] = 0
+            #     F = y-b
+            #     F = F.reshape(1,-1)
+            #     spikes2 = dcnv.oasis(F=F, batch_size=1000, tau=0.55, fs=fs)
+            #     all_g.append(g)
+            #     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+            #     ax1.plot(y-b)
+            #     ax1.plot(c)
+            #     #ax1.plot(Spks_valid[iCell,:])
+            #     ax2.plot(s)
+            #     ax2.plot(s_thresholded)
+            #     #ax2.plot(spikes2.reshape(-1))
+            #     ax2.legend(['s','s thresholded'])
+
+            # preallocate to store spike deconvolution output
+            oasis_spikes = np.zeros(dF.shape)
+            oasis_calcium = np.zeros(dF.shape)
+            # print('Computing OASIS deconvolution for ' + str(dF.shape[0]) + ' cells...')
+            # for iCell in tqdm(range(dF.shape[0]), desc="Processing cells", unit="cell"):
+            #     # add a percentage complete display that shows progress bar
+            #     pass
+            #     # if np.mod(iCell, 10) == 0:
+            #     #     print(f'Cell {iCell} of {dF.shape[0]} ({(iCell/dF.shape[0])*100:.1f}%)')
+            #     # pull out current cell
+            #     cell_trace = dF[iCell,:]
+            #     # add an offset to ensure all values are positive
+            #     y_offset = np.min(cell_trace)
+            #     cell_trace = cell_trace - y_offset
+            #     # deconvolve
+            #     c, s, b, g, lam = deconvolve(cell_trace, penalty=0)
+            #     # threshold under assumption that transitions of < 0.05 are noise based on approx
+            #     # min 1AP response described here https://pubmed.ncbi.nlm.nih.gov/36922596/#&gid=article-figures&pid=fig-4-uid-3
+            #     s[s<0.05] = 0
+            #     # add offset back on to calcium signal estimation of model
+            #     c = c + y_offset
+            #     # store data
+            #     oasis_spikes[iCell,:] = s
+            #     oasis_calcium[iCell,:] = c
+            def process_cell(iCell,cell_trace):
+                y_offset = np.min(cell_trace)
+                cell_trace = cell_trace - y_offset
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    c, s, b, g, lam = deconvolve(cell_trace, penalty=0)
+                s[s < 0.05] = 0
+                # add offset and baseline back on to calcium signal estimation of model
+                c = c + b + y_offset
+                return iCell, s, c
+
+            # Parallel execution
+            if os.getenv("DEBUGPY_RUNNING"):
+                # single-threaded when debugging
+                print("Debugging mode detected, running single-threaded.")
+                for iCell in tqdm(range(dF.shape[0]), desc="Processing cells", unit="cell"):
+                    # add a percentage complete display that shows progress bar
+                    pass
+                    # if np.mod(iCell, 10) == 0:
+                    #     print(f'Cell {iCell} of {dF.shape[0]} ({(iCell/dF.shape[0])*100:.1f}%)')
+                    # pull out current cell
+                    cell_trace = dF[iCell,:]
+                    # add an offset to ensure all values are positive
+                    y_offset = np.min(cell_trace)
+                    cell_trace = cell_trace - y_offset
+                    # deconvolve
+                    c, s, b, g, lam = deconvolve(cell_trace, penalty=0)
+                    # threshold under assumption that transitions of < 0.05 are noise based on approx
+                    # min 1AP response described here https://pubmed.ncbi.nlm.nih.gov/36922596/#&gid=article-figures&pid=fig-4-uid-3
+                    s[s<0.05] = 0
+                    # add offset back on to calcium signal estimation of model
+                    c = c + b + y_offset
+                    # store data
+                    oasis_spikes[iCell,:] = s
+                    oasis_calcium[iCell,:] = c
+            else:
+                print("Running multi-threaded.")
+                results = Parallel(n_jobs=-1, prefer="processes")(
+                    delayed(process_cell)(iCell,dF[iCell,:])
+                    for iCell in tqdm(range(dF.shape[0]), desc="Processing cells", unit="cell")
+                )
+                # Collect results
+                for iCell, s, c in results:
+                    oasis_spikes[iCell, :] = s
+                    oasis_calcium[iCell, :] = c  
+
+            print("Devonvolution complete.")
+            ####################
             # get times of each frame
+            # mid frame time
             depthFrameTimes = frameTimes[iDepth:len(frameTimes):depthCount]
+            # start frame time of current and next frame
+            depth_frame_start_times = frame_start_times[iDepth:len(frame_start_times):depthCount]
+            next_depth_frame_times = frame_start_times[iDepth+1:len(frame_start_times):depthCount]
             # make sure there are not more times than frames or vice versa
             min_frame_count = min(dF.shape[1],len(depthFrameTimes))
             if dF.shape[1]<len(depthFrameTimes):
                 print('Warning: less frames in tif than frame triggers, diff = ' + str(len(depthFrameTimes)-dF.shape[1]))
             elif dF.shape[1]>len(depthFrameTimes):
                 print('Warning: less frame triggers than frames in tif, diff = ' + str(dF.shape[1]-len(depthFrameTimes)))
-        
+
             depthFrameTimes = depthFrameTimes[:min_frame_count]
+            depth_frame_start_times = depth_frame_start_times[:min_frame_count]
+            next_depth_frame_times = next_depth_frame_times[:min_frame_count]
+
             dF = dF[:,:min_frame_count]
             F_valid = F_valid[:,:min_frame_count]
             Spks_valid = Spks_valid[:,:min_frame_count]
-            
-            # resample to get desired sampling rate
-            dF_resampled = interpolate.interp1d(depthFrameTimes, dF.T, axis=0, kind='previous',fill_value="extrapolate")(outputTimes).T
-            F_resampled = interpolate.interp1d(depthFrameTimes, F_valid.T, axis=0, kind='previous',fill_value="extrapolate")(outputTimes).T
-            Spks_resampled = interpolate.interp1d(depthFrameTimes, Spks_valid.T, axis=0, kind='previous',fill_value="extrapolate")(outputTimes).T
+            oasis_spikes = oasis_spikes[:,:min_frame_count]
+            oasis_calcium = oasis_calcium[:,:min_frame_count]
+
+            # resample to get desired sampling rate. note '.T' is the transpose to get matrix orientation correct for interpolation
+            print("Resampling to desired output frequency...")
+            depthFrameTimes = np.asarray(depthFrameTimes)
+            outputTimes = np.asarray(outputTimes)
+
+            idx = np.searchsorted(depthFrameTimes, outputTimes, side="right") - 1
+            idx = np.clip(idx, 0, len(depthFrameTimes) - 1)  
+
+            #dF_resampled = interpolate.interp1d(depthFrameTimes, dF.T, axis=0, kind='previous',fill_value="extrapolate")(outputTimes).T
+            #F_resampled = interpolate.interp1d(depthFrameTimes, F_valid.T, axis=0, kind='previous',fill_value="extrapolate")(outputTimes).T
+            #Spks_resampled = interpolate.interp1d(depthFrameTimes, Spks_valid.T, axis=0, kind='previous',fill_value="extrapolate")(outputTimes).T
+            #Baseline_resampled = interpolate.interp1d(depthFrameTimes, F_valid.T, axis=0, kind='previous',fill_value="extrapolate")(outputTimes).T
+            #oasis_spikes_resampled = interpolate.interp1d(depthFrameTimes, oasis_spikes.T, axis=0, kind='previous',fill_value="extrapolate")(outputTimes).T
+            #oasis_calcium_resampled = interpolate.interp1d(depthFrameTimes, oasis_calcium.T, axis=0, kind='previous',fill_value="extrapolate")(outputTimes).T
+
+            dF_resampled = dF[:, idx]
+            F_resampled = F_valid[:, idx]
+            Spks_resampled = Spks_valid[:, idx]
+            Baseline_resampled = F_valid[:, idx]
+            oasis_spikes_resampled = oasis_spikes[:, idx]
+            oasis_calcium_resampled = oasis_calcium[:, idx]
+
+            print("Resampling complete.")
             # if there is only one cell ensure it is rotated to (cell,time) orientation
             if len(dF_resampled.shape) == 1:
                 # add the new axis to make sure it is (cell,time)
                 dF_resampled = dF_resampled[np.newaxis,:]
                 F_resampled = F_resampled[np.newaxis,:]
                 Spks_resampled = Spks_resampled[np.newaxis,:]
+                Baseline_resampled = Baseline_resampled[np.newaxis,:]
+                oasis_spikes_resampled = oasis_spikes_resampled[np.newaxis,:]
+                oasis_calcium_resampled = oasis_calcium_resampled[np.newaxis,:]
 
             # pick out valid cells
             allRoiPix[iCh] = {}
+
+            # construct tokenised neural response representation where you have cell ID,timestamp,spike/df value
+            # Inputs:
+            # y_coords: shape (n_cells,)
+            # frame_height: scalar
+            # activity: shape (n_cells, n_timepoints)
+            # depthFrameTimes: shape (n_timepoints,)
+            # next_depth_frame_times: shape (n_timepoints,)
+            print("Constructing tokenised neural activity matrix.")
+            n_cells, n_timepoints = dF.shape
+
+            # Scale y to fraction (0 to 1)
+            frame_height = np.shape(s2p_ops['meanImg'])[0]
+            # for each neuron calculate the median y coordinate (distance from top of frame)
+            y_coords = np.array([np.median(ypix[i]) for i in range(len(ypix))]) # shape: (n_cells,)
+            fraction = y_coords / frame_height  # shape: (n_cells,)
+            # Compute difference between frame times
+            time_deltas = next_depth_frame_times - depth_frame_start_times  # shape: (n_timepoints,)
+
+            # Compute sample times:
+            # sample_time = depthFrameTimes + fraction * (next - depth)
+            sample_times = depth_frame_start_times[None, :] + fraction[:, None] * time_deltas[None, :]  # shape: (n_cells, n_timepoints)
+
+            # Flatten (all first row first, etc)
+            cell_ids = np.repeat(np.arange(n_cells), n_timepoints)
+            cell_ids = cell_ids + accumulated_rois
+            accumulated_rois = accumulated_rois + n_cells
+            sample_times_flat = sample_times.flatten()
+            # activity from oasis
+            activity_flat_oasis_dF = oasis_calcium.flatten()
+            activity_flat_oasis_spikes = oasis_spikes.flatten()
+            # activity from raw dF/F
+            activity_flat_dF = dF.flatten()
+
+            # Combine into final tokenized matrices [cell_id, sample_time, activity] of depth
+            tokenised_oasis_dF = np.stack((cell_ids, sample_times_flat, activity_flat_oasis_dF), axis=1)
+            tokenised_oasis_spikes = np.stack((cell_ids, sample_times_flat, activity_flat_oasis_spikes), axis=1)
+            tokenised_dF = np.stack((cell_ids, sample_times_flat, activity_flat_dF), axis=1)
             
+            print("Tokenised neural activity matrix constructed.")
+            # sort tokenized matrices by time.
+            # tokenised_oasis_dF = tokenised_oasis_dF[np.argsort(tokenised_oasis_dF[:, 1])]
+            # tokenised_oasis_spikes = tokenised_oasis_spikes[np.argsort(tokenised_oasis_spikes[:, 1])]
+            # tokenised_dF = tokenised_dF[np.argsort(tokenised_dF[:, 1])]
+
+            # accumulate data across depths
+            print("Accumulating data across depths...")
             if dF_resampled.shape[0] > 0:
                 # then we have some rois
-                if not(iCh in alldF):
-                    # if these are the first cells being added then initiate the array in the dict item with the right size
-                    alldF[iCh] = dF_resampled
-                    allF[iCh] = F_resampled
-                    allSpikes[iCh] = Spks_resampled
-                    allDepths[iCh] = np.tile(iDepth, (np.sum(cellValid[:]).astype(int), 1))
+                # if not(iCh in alldF):
+                #     # then this is the first depth so just store
+                #     alldF[iCh] = dF_resampled
+                #     allF[iCh] = F_resampled
+                #     allBaseline[iCh] = Baseline_resampled
+                #     allSpikes[iCh] = Spks_resampled
+                #     allDepths[iCh] = np.tile(iDepth, (np.sum(cellValid[:]).astype(int), 1))
+                #     all_oasis_spikes[iCh] =  oasis_spikes_resampled  # OASIS spike output (computed below)
+                #     all_oasis_dF[iCh] = oasis_calcium_resampled       # OASIS inferred calcium (computed below)                    
+                #     all_tokenised_oasis_dF[iCh] = tokenised_oasis_dF
+                #     all_tokenised_oasis_spikes[iCh] = tokenised_oasis_spikes
+                #     all_tokenised_dF[iCh] = tokenised_dF                    
+                # else:
+                #     # concatenate to what is already there
+                #     alldF[iCh] = np.concatenate((alldF[iCh],dF_resampled),axis=0)
+                #     allF[iCh] = np.concatenate((allF[iCh],F_resampled),axis=0)
+                #     allBaseline[iCh] = np.concatenate((allBaseline[iCh],Baseline_resampled),axis=0)
+                #     allSpikes[iCh] = np.concatenate((allSpikes[iCh],Spks_resampled),axis=0)
+                #     allDepths[iCh] = np.concatenate([allDepths[iCh], np.tile(iDepth, (np.sum(cellValid[:]).astype(int), 1))],axis=0)
+                #     all_tokenised_oasis_dF[iCh] = np.concatenate((all_tokenised_oasis_dF[iCh], tokenised_oasis_dF), axis=0)
+                #     all_tokenised_oasis_spikes[iCh] = np.concatenate((all_tokenised_oasis_spikes[iCh], tokenised_oasis_spikes), axis=0)
+                #     all_tokenised_dF[iCh] = np.concatenate((all_tokenised_dF[iCh], tokenised_dF), axis=0)
+                # Initialise as lists if not present
+                if iCh not in alldF:
+                    alldF[iCh] = [dF_resampled]
+                    allF[iCh] = [F_resampled]
+                    allBaseline[iCh] = [Baseline_resampled]
+                    allSpikes[iCh] = [Spks_resampled]
+                    allDepths[iCh] = [np.tile(iDepth, (np.sum(cellValid[:]).astype(int), 1))]
+                    all_oasis_spikes[iCh] = [oasis_spikes_resampled]
+                    all_oasis_dF[iCh] = [oasis_calcium_resampled]
+                    all_tokenised_oasis_dF[iCh] = [tokenised_oasis_dF]
+                    all_tokenised_oasis_spikes[iCh] = [tokenised_oasis_spikes]
+                    all_tokenised_dF[iCh] = [tokenised_dF]
                 else:
-                    # concatenate to what is already there
-                    alldF[iCh] = np.concatenate((alldF[iCh],dF_resampled),axis=0)
-                    allF[iCh] = np.concatenate((allF[iCh],F_resampled),axis=0)
-                    allSpikes[iCh] = np.concatenate((allSpikes[iCh],Spks_resampled),axis=0)
-                    allDepths[iCh] = np.concatenate([allDepths[iCh], np.tile(iDepth, (np.sum(cellValid[:]).astype(int), 1))],axis=0)
+                    alldF[iCh].append(dF_resampled)
+                    allF[iCh].append(F_resampled)
+                    allBaseline[iCh].append(Baseline_resampled)
+                    allSpikes[iCh].append(Spks_resampled)
+                    allDepths[iCh].append(np.tile(iDepth, (np.sum(cellValid[:]).astype(int), 1)))
+                    all_oasis_spikes[iCh].append(oasis_spikes_resampled)
+                    all_oasis_dF[iCh].append(oasis_calcium_resampled)
+                    all_tokenised_oasis_dF[iCh].append(tokenised_oasis_dF)
+                    all_tokenised_oasis_spikes[iCh].append(tokenised_oasis_spikes)
+                    all_tokenised_dF[iCh].append(tokenised_dF)
 
+                    del dF_resampled, F_resampled, Baseline_resampled, Spks_resampled
+                    del oasis_spikes_resampled, oasis_calcium_resampled
+                    del tokenised_oasis_dF, tokenised_oasis_spikes, tokenised_dF
+                    del dF, F_valid, Spks_valid, baseline
+                    del oasis_spikes, oasis_calcium
+                    gc.collect()
+
+
+            print("Accumulation complete.")
             allRoiPix[iCh][iDepth] = roiPix
             allRoiMaps[iCh][iDepth] = roiMap
             allFOV[iCh][iDepth] = s2p_ops['meanImg']
+
+    for iCh in alldF:
+        alldF[iCh] = np.concatenate(alldF[iCh], axis=0)
+        allF[iCh] = np.concatenate(allF[iCh], axis=0)
+        allBaseline[iCh] = np.concatenate(allBaseline[iCh], axis=0)
+        allSpikes[iCh] = np.concatenate(allSpikes[iCh], axis=0)
+        allDepths[iCh] = np.concatenate(allDepths[iCh], axis=0)
+        all_oasis_spikes[iCh] = np.concatenate(all_oasis_spikes[iCh], axis=0)
+        all_oasis_dF[iCh] = np.concatenate(all_oasis_dF[iCh], axis=0)
+        all_tokenised_oasis_dF[iCh] = np.concatenate(all_tokenised_oasis_dF[iCh], axis=0)
+        all_tokenised_oasis_spikes[iCh] = np.concatenate(all_tokenised_oasis_spikes[iCh], axis=0)
+        all_tokenised_dF[iCh] = np.concatenate(all_tokenised_dF[iCh], axis=0)
 
     print('Saving 2-photon data...')
 
@@ -311,29 +625,58 @@ def run_preprocess_s2p(userID, expID):
     for iCh in range(len(alldF)):
         # make a dict where all of the experiment data is stored
         ca_data = {}
-        ca_data['dF']           = alldF[iCh]
-        ca_data['F']            = allF[iCh]
-        ca_data['Spikes']       = allSpikes[iCh]
+        ca_data_tokenised = {}
+        ca_data_oasis= {}
+        ca_data['dF']           = alldF[iCh].astype(np.float32)
+        ca_data['F']            = allF[iCh].astype(np.int16)
+        ca_data['Spikes']       = allSpikes[iCh].astype(np.float32)
+        ca_data['Baseline']     = allBaseline[iCh].astype(np.int16)
+        # oasis outputs
+        ca_data_oasis['oasis_dF']     = (all_oasis_dF[iCh]*100).astype(np.int16)
+        ca_data_oasis['oasis_spikes'] = (all_oasis_spikes[iCh]*100).astype(np.uint16)
+
+
+        # tokenised data
+        # sort tokenised matrices by time.
+        # all_tokenised_oasis_dF[iCh] = all_tokenised_oasis_dF[iCh][np.argsort(all_tokenised_oasis_dF[iCh][:, 1])]
+        all_tokenised_oasis_spikes[iCh] = all_tokenised_oasis_spikes[iCh][np.argsort(all_tokenised_oasis_spikes[iCh][:, 1])]
+        # all_tokenised_dF[iCh] = all_tokenised_dF[iCh][np.argsort(all_tokenised_dF[iCh][:, 1])]
+        # store
+        # ca_data['tokenised_oasis_dF'] = all_tokenised_oasis_dF[iCh].astype(np.float32)
+        ca_data_tokenised['tokenised_oasis_spikes'] = all_tokenised_oasis_spikes[iCh].astype(np.float32)
+        # ca_data['tokenised_dF'] = all_tokenised_dF[iCh].astype(np.float32)
+        # other data
         ca_data['Depths']       = allDepths[iCh]
         ca_data['AllRoiPix']    = allRoiPix[iCh]
         ca_data['AllRoiMaps']   = allRoiMaps[iCh]
         ca_data['AllFOV']       = allFOV[iCh]
         ca_data['t']            = outputTimes
+        # write out main data
         output_filename = 's2p_ch' + str(iCh)+'.pickle'
         pickle_out = open(os.path.join(exp_dir_processed_recordings,output_filename),"wb")
         pickle.dump(ca_data, pickle_out)
         pickle_out.close()
+        # write out tokenised data
+        output_filename = 's2p_tokenised_ch' + str(iCh)+'.pickle'
+        pickle_out = open(os.path.join(exp_dir_processed_recordings,output_filename),"wb")
+        pickle.dump(ca_data_tokenised, pickle_out)
+        pickle_out.close()
+        # write out oasis data
+        output_filename = 's2p_oasis_ch' + str(iCh)+'.pickle'
+        pickle_out = open(os.path.join(exp_dir_processed_recordings,output_filename),"wb")
+        pickle.dump(ca_data_oasis, pickle_out)
+        pickle_out.close()
 
     print('2-photon preprocessing done')
-
 
 # for debugging:
 def main():
     # debug mode
     print('Parameters received via debug mode')
-    userID = 'adamranson'
-    expID = '2025-03-05_02_ESMT204'
-    run_preprocess_s2p(userID, expID)    
+    userID = 'pmateosaparicio'
+    expID = '2025-07-07_05_ESPM154'
+    #expID=  '2025-06-12_04_ESPM135'
+    run_preprocess_s2p(userID, expID, neuropil_coeff_config=[0.7 , 0.7]) 
 
 if __name__ == "__main__":
     main()

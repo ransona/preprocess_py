@@ -19,6 +19,7 @@ def run_preprocess_bv2(userID, expID):
     filter_flips = True
     min_pulse_width = 0.05 # seconds
     max_pulse_width = 1.75 # seconds 
+    encoder_scaling_factor = 0.0005371094
 
     animalID, remote_repository_root, \
     processed_root, exp_dir_processed, \
@@ -144,6 +145,7 @@ def run_preprocess_bv2(userID, expID):
     else:
         print('*** Warning: One or both of the PD signals are invalid. If this is an experiment with screens off this is expected. If not, there is a problem. ***')
         choice = input("Do you want to continue? (y/n): ").strip().lower()
+        
         
         if choice != 'y':
             print("Exiting...")
@@ -305,11 +307,12 @@ def run_preprocess_bv2(userID, expID):
 
     # Add running trace
     if pd_valid and harp_valid:
-        # then we can use harp for encoder
+        # then we can use harp for encoder - before scaling this is raw ticks of the rotary encoder
         wheel_pos = harp_encoder
         wheel_timestamps = linear_interpolator_harp_2_tl(harp_time)
+        wheel_pos = wheel_pos * encoder_scaling_factor
     else:
-        # we use BV for encoder
+        # we use BV for encoder - this is scaled using scale factor in bonsai
         wheel_pos = bv_encoder['Encoder'].values
         wheel_timestamps = linear_interpolator_bv_2_tl(bv_encoder['Timestamp'].values)
 
@@ -333,14 +336,11 @@ def run_preprocess_bv2(userID, expID):
     # set smooth_window at start and end to the first and last value of the unsmoothed data
     wheel_pos_smooth[0:smooth_window] = wheel_pos_resampled[0]
     wheel_pos_smooth[-smooth_window:] = wheel_pos_resampled[-1]
-    # Calc diff between position samples and then mutiply by circumference of the running wheel
-    wheel_diameter = 17.5 # cm
-    encoder_resolution = 1024
-    wheel_circumference = wheel_diameter * np.pi
+    # Calc diff between position samples (already in units of meters)
     # mouse velocity in cm/sample (at 20Hz)
-    wheel_velocity = np.diff(wheel_pos_smooth) * (wheel_circumference / encoder_resolution)
+    wheel_velocity = np.diff(wheel_pos_smooth) 
     wheel_velocity = np.append(wheel_velocity, wheel_velocity[-1])
-    # mouse velocity in cm/s
+    # mouse velocity in m/s
     wheel_velocity = wheel_velocity * resample_freq
     # Save data
     wheel = {}
@@ -360,9 +360,9 @@ def run_preprocess_bv2(userID, expID):
     # for debugging:
 def main():
     # userID = 'melinatimplalexi'
-    userID = 'pmateosaparicio'
+    userID = 'rubencorreia'
     #userID = 'adamranson'
-    expID = '2025-03-26_01_ESPM126'
+    expID = '2025-10-02_04_TEST'
     run_preprocess_bv2(userID, expID)
 
 if __name__ == "__main__":
