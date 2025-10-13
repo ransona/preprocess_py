@@ -651,6 +651,12 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
         ca_data['AllRoiMaps']   = allRoiMaps[iCh]
         ca_data['AllFOV']       = allFOV[iCh]
         ca_data['t']            = outputTimes
+
+        ca_data_oasis['Depths']       = allDepths[iCh]
+        ca_data_oasis['AllRoiPix']    = allRoiPix[iCh]
+        ca_data_oasis['AllRoiMaps']   = allRoiMaps[iCh]
+        ca_data_oasis['AllFOV']       = allFOV[iCh]
+        ca_data_oasis['t']            = outputTimes        
         # write out main data
         output_filename = 's2p_ch' + str(iCh)+'.pickle'
         pickle_out = open(os.path.join(exp_dir_processed_recordings,output_filename),"wb")
@@ -672,9 +678,8 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
 # for debugging:
 def main():
     # debug mode
-    print('Parameters received via debug mode')
-    userID = 'pmateosaparicio'
-    expID = '2025-07-07_05_ESPM154'
+    userID = 'melinatimplalexi'
+    expID = '2025-08-07_05_ESPM163'
     #expID=  '2025-06-12_04_ESPM135'
     run_preprocess_s2p(userID, expID, neuropil_coeff_config=[0.7 , 0.7]) 
 

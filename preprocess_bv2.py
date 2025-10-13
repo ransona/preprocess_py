@@ -73,8 +73,10 @@ def run_preprocess_bv2(userID, expID):
     # Find Harp times when PD flip
     #  Threshold the Harp PD signal and detect flips
     harp_pd_smoothed = pd.Series(harp_pd).rolling(window=20, min_periods=1).mean().values
+    harp_pd_smoothed = harp_pd_smoothed - np.min(harp_pd_smoothed)
     harp_pd_high = np.percentile(harp_pd_smoothed, 99)
     harp_pd_low = np.percentile(harp_pd_smoothed, 1)   
+    # calculate 'signal to noise' ratio - this will be low if the signal is just noise
     harp_pd_on_off_ratio = (harp_pd_high - harp_pd_low) / harp_pd_low 
     if harp_pd_on_off_ratio > 10:
         harp_pd_valid = True  
@@ -102,7 +104,8 @@ def run_preprocess_bv2(userID, expID):
     tl_pd = np.squeeze(tl_daqData[:, tl_pd_ch])
     # Needs to be smoothed because the photodiode signal is noisy and monitor blanking can further screw it up
     # There should also be a RC filter in the photodiode signal path to smooth high frequency noise
-    tl_pd_smoothed = pd.Series(tl_pd).rolling(window=20, min_periods=1).mean().values
+    tl_pd_smoothed = pd.Series(tl_pd).rolling(window=40, min_periods=1).mean().values
+    tl_pd_smoothed = tl_pd_smoothed - np.min(tl_pd_smoothed)
     # Calculate threshold for PD signal
     tl_pd_high = np.percentile(tl_pd_smoothed, 99)
     tl_pd_low = np.percentile(tl_pd_smoothed, 1)
@@ -165,6 +168,8 @@ def run_preprocess_bv2(userID, expID):
             print('BV TL flips = ' + str(len(flip_times_bv_tl)))
             print('BV flips = ' + str(len(flip_times_bv_bv)))
             print('Harp flips = ' + str(len(flip_times_harp)))
+        else:
+            print('All timing pulses equal ('+str(len(flip_times_pd_tl))+')')
         
         pulse_time_diff_tl_bv_unfiltered = (flip_times_pd_tl[0:min_pulses_unfiltered]-flip_times_pd_tl[0])-(flip_times_bv_tl[0:min_pulses_unfiltered]-flip_times_bv_tl[0])
         # remove all pulses of < a certain width in tl/harp time
@@ -362,7 +367,7 @@ def main():
     # userID = 'melinatimplalexi'
     userID = 'rubencorreia'
     #userID = 'adamranson'
-    expID = '2025-10-02_04_TEST'
+    expID = '2025-10-10_09_ESPM171'
     run_preprocess_bv2(userID, expID)
 
 if __name__ == "__main__":
