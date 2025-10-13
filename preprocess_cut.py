@@ -247,8 +247,8 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
 
 # for debugging:
 def main():
-    userID = 'melinatimplalexi'
-    expID = '2025-08-07_05_ESPM163'
+    userID = 'pmateosaparicio'
+    expID = '2025-07-07_06_ESPM154'
     pre_secs = 5
     post_secs = 5
     run_preprocess_cut(userID, expID, pre_secs, post_secs)

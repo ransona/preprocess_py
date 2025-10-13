@@ -149,6 +149,7 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
     framePulsesPerDepth = len(frameTimes)/depthCount
     frameRate = 1/np.median(np.diff(frameTimes))
     frameRatePerPlane = frameRate/depthCount
+    frame_duration = np.median(time_diffs)
     
     # determine timeline times when we want the Ca signal of each cell
     # +1 and -1 are because we want to make sure we only include frame
@@ -446,7 +447,8 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
             depthFrameTimes = frameTimes[iDepth:len(frameTimes):depthCount]
             # start frame time of current and next frame
             depth_frame_start_times = frame_start_times[iDepth:len(frame_start_times):depthCount]
-            next_depth_frame_times = frame_start_times[iDepth+1:len(frame_start_times):depthCount]
+            next_depth_frame_times = depth_frame_start_times + frame_duration
+            
             # make sure there are not more times than frames or vice versa
             min_frame_count = min(dF.shape[1],len(depthFrameTimes))
             if dF.shape[1]<len(depthFrameTimes):
@@ -678,8 +680,10 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
 # for debugging:
 def main():
     # debug mode
-    userID = 'melinatimplalexi'
-    expID = '2025-08-07_05_ESPM163'
+    userID = 'pmateosaparicio'
+    userID = 'rubencorreia'
+
+    expID = '2025-10-10_11_ESPM171'
     #expID=  '2025-06-12_04_ESPM135'
     run_preprocess_s2p(userID, expID, neuropil_coeff_config=[0.7 , 0.7]) 
 
