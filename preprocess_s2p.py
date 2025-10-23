@@ -640,13 +640,11 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
 
         # tokenised data
         # sort tokenised matrices by time.
-        # all_tokenised_oasis_dF[iCh] = all_tokenised_oasis_dF[iCh][np.argsort(all_tokenised_oasis_dF[iCh][:, 1])]
-        all_tokenised_oasis_spikes[iCh] = all_tokenised_oasis_spikes[iCh][np.argsort(all_tokenised_oasis_spikes[iCh][:, 1])]
-        # all_tokenised_dF[iCh] = all_tokenised_dF[iCh][np.argsort(all_tokenised_dF[iCh][:, 1])]
-        # store
-        # ca_data['tokenised_oasis_dF'] = all_tokenised_oasis_dF[iCh].astype(np.float32)
+        # CRITICAL NOTE: sorting by token time alone does not give consistent cell order due to rounding errors
+        #                of neuron timestamps that are very close in time. This can cause swapping of neuron order!
+        all_tokenised_oasis_spikes[iCh] = all_tokenised_oasis_spikes[iCh][np.lexsort((all_tokenised_oasis_spikes[iCh][:, 0], np.round(all_tokenised_oasis_spikes[iCh][:, 1], 9)))]
         ca_data_tokenised['tokenised_oasis_spikes'] = all_tokenised_oasis_spikes[iCh].astype(np.float32)
-        # ca_data['tokenised_dF'] = all_tokenised_dF[iCh].astype(np.float32)
+        
         # other data
         ca_data['Depths']       = allDepths[iCh]
         ca_data['AllRoiPix']    = allRoiPix[iCh]
@@ -680,11 +678,16 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
 # for debugging:
 def main():
     # debug mode
-    userID = 'pmateosaparicio'
-    userID = 'rubencorreia'
 
-    expID = '2025-10-10_11_ESPM171'
+
+    userID = 'pmateosaparicio'
+    # userID = 'rubencorreia'
+    expID = '2025-07-04_04_ESPM154'
     #expID=  '2025-06-12_04_ESPM135'
+
+
+    
+
     run_preprocess_s2p(userID, expID, neuropil_coeff_config=[0.7 , 0.7]) 
 
 if __name__ == "__main__":
