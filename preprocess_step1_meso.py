@@ -108,10 +108,11 @@ def run_preprocess_step1_meso(jobID,userID, expID, suite2p_config, runs2p, rundl
                 # check if combining several experiments and if so pass all paths to s2p
                 if combining_experiments:
                     # then pass all paths to s2p
-                    exp_dir_raw_roi = exp_dir_raw_all
+                    exp_dir_raw_roi = exp_dir_raw_all.split(',')
+                    
                     # cycle through adding path and roi folder names to base experiment path
                     for i in range(len(exp_dir_raw_roi)):
-                        exp_dir_raw_roi[i] = os.path.join(exp_dir_raw_roi[i],roi_folders[i_scanpath][i_roi])
+                        exp_dir_raw_roi[i] = os.path.join(exp_dir_raw_roi[i],current_scanpath_name,roi_folders[i_scanpath][i_roi])
                         # check it exists (validation of experiments being combined being all uniform
                         if not os.path.exists(exp_dir_raw_roi[i]):
                             raise Exception("Experiment " + exp_dir_raw_roi[i] + " does not exist, indicating the experiments being combined are not uniform")
@@ -233,7 +234,10 @@ def main():
     runs2p          = True
     rundlc          = False
     runfitpupil     = False
-    run_preprocess_step1_meso(jobID,userID, expID,suite2p_config, runs2p, rundlc, runfitpupil)
+    # run_preprocess_step1_meso(jobID,userID, expID,suite2p_config, runs2p, rundlc, runfitpupil)
+
+    run_preprocess_step1_meso("2025_10_31_15_18_13_adamranson_2025-10-30_07_ESYB025.pickle","adamranson","2025-10-30_07_ESYB025,2025-10-30_10_ESYB025","[[\'1c1d2_1024px.npy\'], [\'1c1d2_1024px.npy\']]",True,False,False)
+
     #run_preprocess_step1("debug","adamranson","2023-03-31_05_ESMT125","ch_1_depth_1.npy",False,True,True)
     # cmd = ['python','/home/adamranson/code/preprocess_py/test_print.py']
     #pmateosaparicio_2022-02-08_03_ESPM040

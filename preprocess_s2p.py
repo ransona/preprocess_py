@@ -678,17 +678,23 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
 # for debugging:
 def main():
     # debug mode
-
+    allExpIDs = [
+        #'2025-07-04_04_ESPM154', # stim
+        '2025-07-07_05_ESPM154', # stim
+        #'2025-07-02_03_ESPM135', # stim
+        #'2025-07-08_04_ESPM152', # stim
+        #'2025-07-04_06_ESPM154', # sleep
+        '2025-07-07_06_ESPM154', # sleep
+        #'2025-07-02_05_ESPM135', # sleep
+        #'2025-07-08_05_ESPM152'  # sleep
+    ]
 
     userID = 'pmateosaparicio'
     # userID = 'rubencorreia'
-    expID = '2025-07-04_04_ESPM154'
     #expID=  '2025-06-12_04_ESPM135'
 
-
-    
-
-    run_preprocess_s2p(userID, expID, neuropil_coeff_config=[0.7 , 0.7]) 
+    for expID in allExpIDs:    
+        run_preprocess_s2p(userID, expID, neuropil_coeff_config=[0.7 , 0.7]) 
 
 if __name__ == "__main__":
     main()
