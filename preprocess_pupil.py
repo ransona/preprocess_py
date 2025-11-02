@@ -148,7 +148,8 @@ def preprocess_pupil_run(userID, expID):
 
             # confirm all 4 eye corners are within expected region AND that the smallest of 
             # the mid-eyelid to lat-eye corner distances is more than 30% of eye width (it
-            # should be about 50%)
+            # should be about 50%). if one eye corner point is invalid then one value in 
+            # pointsValid = 0
             if np.min(pointsValid) == 1 and (min_corner_middle_distance / eyeWidth) > 0.30:
 
                 # fit two parabolas - one for each eye lid
@@ -199,8 +200,8 @@ def preprocess_pupil_run(userID, expID):
                 # default to quality control passed
                 eyeDat['qc'].append(0)
 
-                if np.sum(inEye) < 2:
-                    eyeDat['qc'][iFrame] = 2  # indicates QC failed due to pupil fit
+                if np.sum(inEye) < 3:
+                    eyeDat['qc'][iFrame] = 2  # indicates QC failed due to pupil fit (not enough points to fit circle)
 
                 if iFrame==0:
                     # initialise data structure
