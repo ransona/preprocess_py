@@ -13,6 +13,15 @@ import pickle
 import organise_paths
 import shutil
 
+# quality control key:
+# 0: passed
+# 1: not enough eye points AND eye not right shape
+# 2: < 3 pupil points
+# 3: not enough eye points
+# 4: eye not right shape
+# 5: pupil points too close (<=135 deg) to accurately fit circle
+# 6: pupil circle fit not valid (centre out of eye, circle bigger than eye)
+
 def preprocess_pupil_run(userID, expID):
     print('Starting preprocess_pupil_run...')
     animalID, remote_repository_root, \
@@ -23,11 +32,9 @@ def preprocess_pupil_run(userID, expID):
     if not os.path.exists(exp_dir_processed_recordings):
         os.mkdir(exp_dir_processed_recordings)
 
-    displayOn = False
+    displayOn = True
     displayInterval = 1000
 
-    if displayOn:
-        f = 0 #figure()
 
     print('Starting ' + expID)
 
@@ -37,6 +44,8 @@ def preprocess_pupil_run(userID, expID):
     vid_filenames = [expID + '_eye1_left.avi',
                     expID + '_eye1_right.avi']
 
+
+    pupil_keypoint_angles = [0,180,90,270,315,45,135,225]
 
     for iVid in range(0, len(dlc_filenames)):
         print()
@@ -51,6 +60,9 @@ def preprocess_pupil_run(userID, expID):
             except:
                 print('Cropped eye videos not found on server')
 
+        
+        if displayOn:
+            cap = cv2.VideoCapture(videoPath)
         # read the csv deeplabcut output file
         dlc_data = pd.read_csv(os.path.join(exp_dir_processed, dlc_filenames[iVid]), delimiter=',',skiprows=[0,1,2],header=None)
 
@@ -58,6 +70,11 @@ def preprocess_pupil_run(userID, expID):
         eyeY = dlc_data.loc[:,[26,29,32,35]].values
         pupilX = dlc_data.loc[:,1:22:3].values
         pupilY = dlc_data.loc[:,2:23:3].values
+        pupil_likelihood = dlc_data.loc[:,3:24:3].values
+        # set XY positions with low confidence to zero, they will be then excluded
+        pupilX[pupil_likelihood<0.90] = 0
+        pupilY[pupil_likelihood<0.90] = 0
+
         # get minimum of eye x and eye y confidence from dlc
         # apply a median filter accross time to remove random blips 
         eyeX = median_filter(eyeX,[3,1])
@@ -125,6 +142,10 @@ def preprocess_pupil_run(userID, expID):
         eyeDat['pupilY'] = pupilY
 
         lastFrame = time.time()
+        if displayOn:
+            fig, ax = plt.subplots()
+            plt.show(block=False)
+            
         for iFrame in range(dlc_data.shape[0]):
             # do QC to make sure the eye corners have been well detected
             pointsValid = validRegionMask[
@@ -133,9 +154,9 @@ def preprocess_pupil_run(userID, expID):
             ]
             # check spacing of left and right corners is about right compared to
             # median of whole recording
-            cornerDistanceDiff = np.abs((eyeX[iFrame,0]-eyeX[iFrame,2])-eyeWidth)/eyeWidth
-            if eyeWidth == 0:
-                z=0
+            # cornerDistanceDiff = np.abs((eyeX[iFrame,0]-eyeX[iFrame,2])-eyeWidth)/eyeWidth
+            # if eyeWidth == 0:
+            #     z=0
 
             # check top and bottom lid mid points are around halfway between eye
             # corners in x direction
@@ -147,10 +168,10 @@ def preprocess_pupil_run(userID, expID):
             ]))
 
             # confirm all 4 eye corners are within expected region AND that the smallest of 
-            # the mid-eyelid to lat-eye corner distances is more than 30% of eye width (it
+            # the mid-eyelid to lat-eye corner distances is more than 20% of eye width (it
             # should be about 50%). if one eye corner point is invalid then one value in 
             # pointsValid = 0
-            if np.min(pointsValid) == 1 and (min_corner_middle_distance / eyeWidth) > 0.30:
+            if np.min(pointsValid) == 1 and (min_corner_middle_distance / eyeWidth) > 0.20:
 
                 # fit two parabolas - one for each eye lid
                 # points:
@@ -172,37 +193,94 @@ def preprocess_pupil_run(userID, expID):
                 rr, cc = polygon(yVals, xVals)
                 eyeMask = np.zeros(frameSize)
                 eyeMask[rr, cc] = 1
-                # plt.figure()
-                # plt.imshow(eyeMask)
-                # check if each pupil point is in the eye mask and exclude it if not
+
+                # # check if each pupil point is in the eye mask and exclude it if not
                 # to do this convert x y coordinates 
                 pupilIdx = np.ravel_multi_index([[pupilY[iFrame].astype(int)], [pupilX[iFrame].astype(int)]], frameSize)
                 inEye = eyeMask.flatten()[pupilIdx][0].astype(bool)
+
+                if np.sum(inEye) > 1:                
+                    # check that points are not all on one side of pupil etc
+                    # Get the angles corresponding to True entries
+                    angles = np.array(pupil_keypoint_angles)[np.array(inEye)]
+                    # Compute all pairwise circular differences
+                    diffs = np.abs(angles[:, None] - angles[None, :])
+                    diffs = np.minimum(diffs, 360 - diffs)  # handle circular wrap-around
+                    # Get the maximum angular difference
+                    max_diff = np.max(diffs)
+                else:
+                    max_diff = 0
+
                 # fit a circle to those pupil points within the eye
                 xpoints = pupilX[iFrame, inEye]
                 ypoints = pupilY[iFrame, inEye]
                 allpoints = np.concatenate((xpoints[np.newaxis,:],ypoints[np.newaxis,:]),axis=0).T
-                
-                if np.sum(inEye) > 2:
+
+                if (np.sum(inEye) > 2) and (max_diff>135):
                     xCenter, yCenter, radius, _ = circle_fit(allpoints)
-                    eyeDat['x'].append(xCenter.astype(int))
-                    eyeDat['y'].append(yCenter.astype(int))
-                    eyeDat['radius'].append(radius.astype(int))
+                    # sanity check the circle fit
+                    fit_valid = True
+                    if radius > eyeWidth:
+                        # pupil is bigger then long angle of eye opening - how could it have been detected?
+                        fit_valid = False
+                    elif (
+                        (xCenter < min(eyeX[iFrame,[0,2]])) or
+                        (xCenter > max(eyeX[iFrame,[0,2]])) or
+                        (yCenter < min(eyeY[iFrame,[1,3]])) or
+                        (yCenter > max(eyeY[iFrame,[1,3]]))
+                    ):
+                        # checks fitted circle approx in eye
+                        fit_valid = False
+                    
+                    if fit_valid:
+                        eyeDat['x'].append(xCenter.astype(int))
+                        eyeDat['y'].append(yCenter.astype(int))
+                        eyeDat['radius'].append(radius.astype(int))
+                    else:
+                        eyeDat['x'].append(np.nan)
+                        eyeDat['y'].append(np.nan)
+                        eyeDat['radius'].append(np.nan)
+
                 else:
                     # not enough points to fit circle
-                    xCenter = np.nan
-                    yCenter = np.nan
+                    xCenter = np.nan 
+                    yCenter = np.nan 
                     radius = np.nan
-                    eyeDat['x'].append(xCenter)
-                    eyeDat['y'].append(yCenter)
-                    eyeDat['radius'].append(radius)
+                    eyeDat['x'].append(np.nan)
+                    eyeDat['y'].append(np.nan)
+                    eyeDat['radius'].append(np.nan)
+
+                if displayOn:
+                    ax.cla()
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, iFrame)
+                    ret, frame = cap.read()
+                    p10, p90 = np.percentile(frame, (0, 50))
+                    frame_clipped = np.clip(frame, p10, p90)
+                    frame_scaled = (frame_clipped - p10) / (p90 - p10)
+                    frame_scaled = np.clip(frame_scaled, 0, 1)
+                    ax.imshow(frame_scaled)
+                    ax.scatter(allpoints[:,0],allpoints[:,1])
+                    rect = plt.Rectangle((roiLeft-padding,roiTop-padding), roiWidth+padding*2, roiHeight+padding*2, edgecolor='r', fill=False)
+                    ax.add_patch(rect)
+                    # Create and add the circle
+                    circle = plt.Circle((xCenter,yCenter), radius, edgecolor='b', fill=False, linewidth=1)
+                    ax.add_patch(circle)
+                    # eye border
+                    points = np.column_stack((xVals, yVals))
+                    eye_border_polygon = plt.Polygon(points, closed=True, edgecolor='b', fill=False, linewidth=1)
+                    ax.add_patch(eye_border_polygon)                    
+                    plt.draw()
+                    plt.pause(0.1)
 
                 # default to quality control passed
                 eyeDat['qc'].append(0)
 
                 if np.sum(inEye) < 3:
                     eyeDat['qc'][iFrame] = 2  # indicates QC failed due to pupil fit (not enough points to fit circle)
-
+                elif max_diff<=135:
+                    # points are too close together on pupil
+                    eyeDat['qc'][iFrame] = 5
+                
                 if iFrame==0:
                     # initialise data structure
                     eyeDat['topLid']=(topLid[np.newaxis,:])
@@ -220,7 +298,17 @@ def preprocess_pupil_run(userID, expID):
 
             else:
                 # frame has failed QC
-                eyeDat['qc'].append(1)
+                if np.min(pointsValid) == 0 and (min_corner_middle_distance / eyeWidth) <= 0.20:                
+                    eyeDat['qc'].append(1)
+                elif np.min(pointsValid) == 0:
+                    # 
+                    eyeDat['qc'].append(3)
+                elif (min_corner_middle_distance / eyeWidth) <= 0.20:
+                    # eye not right shape
+                    eyeDat['qc'].append(4)
+                elif fit_valid == False:
+                    eyeDat['qc'].append(6)
+                    
                 eyeDat['x'].append(np.nan)
                 eyeDat['y'].append(np.nan)
                 eyeDat['radius'].append(np.nan)
@@ -245,9 +333,9 @@ def preprocess_pupil_run(userID, expID):
         eyeDat['qc'] = np.array(eyeDat['qc']) 
 
         # filter x / y / rad
-        eyeDat['x'] = median_filter(eyeDat['x'],[9])
-        eyeDat['y'] = median_filter(eyeDat['y'],[9])
-        eyeDat['radius'] = median_filter(eyeDat['radius'],[9])
+        # eyeDat['x'] = median_filter(eyeDat['x'],[9])
+        # eyeDat['y'] = median_filter(eyeDat['y'],[9])
+        # eyeDat['radius'] = median_filter(eyeDat['radius'],[9])
         
         # calculate pupil velocity
         xdiffs = np.diff(eyeDat['x'])
@@ -266,6 +354,10 @@ def preprocess_pupil_run(userID, expID):
             pickle.dump(eyeDat, pickle_out)
             pickle_out.close()
         print(f'{iFrame}/{dlc_data.shape[0]-1} - {(iFrame+1)/dlc_data.shape[0]*100:.2f}% complete'+f' Frame rate = {(1/(time.time()-lastFrame))*displayInterval:.2f}', end='\r')        
+        if displayOn:
+            cap.release()
+    
+
     print()
     print('Done without errors')
 
@@ -279,9 +371,21 @@ def main():
     except:
         # debug mode
         print('Parameters received via debug mode')
-        userID = 'adamranson'
-        expID = '2025-04-13_01_ESYB007'
-    preprocess_pupil_run(userID, expID)    
+        userID = 'pmateosaparicio'
+        expID = '2025-07-11_02_ESPM154'
+        allExpIDs = [
+            #'2025-07-04_04_ESPM154',
+            #'2025-07-07_05_ESPM154',
+            #'2025-07-02_03_ESPM135',
+            '2025-07-08_04_ESPM152',
+            #'2025-07-04_06_ESPM154',
+            #'2025-07-07_06_ESPM154',
+            #'2025-07-02_05_ESPM135',
+            #'2025-07-08_05_ESPM152'
+        ]
+
+        for expID in allExpIDs:
+            preprocess_pupil_run(userID, expID)    
 
 if __name__ == "__main__":
     main()
