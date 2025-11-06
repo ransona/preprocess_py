@@ -64,7 +64,8 @@ def preprocess_cam_run(userID, expID):
     loggedFrameTimes = loggedFrameTimes + framePulseTimes[0]
 
     # Periodically correct the logged frame times to align with the Timeline clock
-    framePulseFrameNumbers = np.arange(0, len(framePulseTimes) * 200, 200)
+    framePulseFrameNumbers = np.arange(100, len(framePulseTimes) * 200, 200)
+    max_diff = framePulseTimes[-1] - loggedFrameTimes[framePulseFrameNumbers[-1]]
     for iPulse in range(len(framePulseTimes)):
         # at each pulse calculate how much the systems have gone out of sync
         # and correct the next 200 frame times in loggedFrameTimes
@@ -77,12 +78,6 @@ def preprocess_cam_run(userID, expID):
         else:
             loggedFrameTimes[framePulseFrameNumbers[iPulse]:] += driftAtPulse
 
-    # # define frames we want to know the times of
-    # allFrameNumbers = np.arange(1, eye_frameCount+1)
-    # f = interpolate.interp1d(framePulseFrameNumbers, loggedFrameTimes, fill_value = "extrapolate")  # linear interpolation with extrapolation
-    # # interpolate / extrapolate missing values'
-    # allFrameTimes = f(allFrameNumbers)
-
     frameRate = 1/np.median(np.diff(loggedFrameTimes))
     print(f"Detected eye cam frame rate = {frameRate}Hz")
 
@@ -93,11 +88,21 @@ def preprocess_cam_run(userID, expID):
 
 # for debugging:
 def main():
-    # expID
     userID = 'pmateosaparicio'
-    expID = '2025-07-11_03_ESPM154'
+    expIDs = [
+        '2025-07-04_04_ESPM154',    # stim
+        '2025-07-07_05_ESPM154',    # stim
+        '2025-07-02_03_ESPM135',    # stim
+        '2025-07-08_04_ESPM152',    # stim
+        '2025-07-11_02_ESPM154',    # stim
+        '2025-07-04_06_ESPM154',    # sleep
+        '2025-07-07_06_ESPM154',    # sleep
+        '2025-07-02_05_ESPM135',    # sleep
+        '2025-07-08_05_ESPM152',    # sleep
+        '2025-07-11_03_ESPM154']    # sleep
 
-    preprocess_cam_run(userID, expID)
+    for expID in expIDs:
+        preprocess_cam_run(userID, expID)
 
 if __name__ == "__main__":
     main()

@@ -400,21 +400,19 @@ def main():
         # debug mode
         print('Parameters received via debug mode')
         userID = 'pmateosaparicio'
-        expID = '2025-07-11_02_ESPM154'
-        allExpIDs = [
-            #'2025-07-04_04_ESPM154',
-            #'2025-07-07_05_ESPM154',
-            #'2025-07-02_03_ESPM135',
-            #'2025-07-08_04_ESPM152',
-            #'2025-07-04_06_ESPM154',
-            #'2025-07-07_06_ESPM154',
-            #'2025-07-02_05_ESPM135',
-            #'2025-07-08_05_ESPM152',
-            '2025-07-11_02_ESPM154',
-            '2025-07-11_03_ESPM154'
-        ]
-
-        for expID in allExpIDs:
+        expIDs = [
+            '2025-07-04_04_ESPM154',  # stim
+            '2025-07-07_05_ESPM154',  # stim
+            '2025-07-02_03_ESPM135',  # stim
+            '2025-07-08_04_ESPM152',  # stim
+            '2025-07-11_02_ESPM154',  # stim
+            '2025-07-04_06_ESPM154',  # sleep
+            '2025-07-07_06_ESPM154',  # sleep
+            '2025-07-02_05_ESPM135',  # sleep
+            '2025-07-08_05_ESPM152',  # sleep
+            '2025-07-11_03_ESPM154']  # sleep
+        
+        for expID in expIDs:
             preprocess_pupil_run(userID, expID)    
 
 if __name__ == "__main__":
