@@ -64,11 +64,33 @@ def preprocess_pupil_timestamp_run(userID, expID):
 
 # for debugging:
 def main():
-    x=0
-    # # expID
-    userID = 'adamranson'
-    expID = '2023-04-18_07_ESMT124'
-    preprocess_pupil_timestamp_run(userID, expID)
+    # expID
+    userID = 'pmateosaparicio'
+    allExpIDs = [
+        #'2025-07-04_04_ESPM154',
+        #'2025-07-07_05_ESPM154',
+        #'2025-07-02_03_ESPM135',
+        #'2025-07-08_04_ESPM152',
+        #'2025-07-04_06_ESPM154',
+        #'2025-07-07_06_ESPM154',
+        #'2025-07-02_05_ESPM135',
+        #'2025-07-08_05_ESPM152',
+        #'2025-07-11_02_ESPM154',
+        '2025-07-11_03_ESPM154'
+    ]
+    
+    preprocess_pupil_timestamp_run(userID, allExpIDs[0]) 
+
+# # experiment lists
+# allExpIDs = ['2025-07-07_05_ESPM154']
+# allExpIDs_sleep = [
+#     '2025-07-04_06_ESPM154',
+#     '2025-07-07_06_ESPM154',
+#     '2025-07-11_03_ESPM154',    
+
+#     for expID in allExpIDs:
+#         preprocess_pupil_timestamp_run(userID, expID)   
+
 
 if __name__ == "__main__":
     main()

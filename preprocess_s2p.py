@@ -609,6 +609,7 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
             allRoiMaps[iCh][iDepth] = roiMap
             allFOV[iCh][iDepth] = s2p_ops['meanImg']
 
+    print('Concatinating final output...')
     for iCh in alldF:
         alldF[iCh] = np.concatenate(alldF[iCh], axis=0)
         allF[iCh] = np.concatenate(allF[iCh], axis=0)
@@ -622,7 +623,6 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
         all_tokenised_dF[iCh] = np.concatenate(all_tokenised_dF[iCh], axis=0)
 
     print('Saving 2-photon data...')
-
     # save
     for iCh in range(len(alldF)):
         # make a dict where all of the experiment data is stored
@@ -680,13 +680,15 @@ def main():
     # debug mode
     allExpIDs = [
         #'2025-07-04_04_ESPM154', # stim
-        '2025-07-07_05_ESPM154', # stim
+        #'2025-07-07_05_ESPM154',  # stim
         #'2025-07-02_03_ESPM135', # stim
         #'2025-07-08_04_ESPM152', # stim
+        '2025-07-11_02_ESPM154',  # stim
         #'2025-07-04_06_ESPM154', # sleep
-        '2025-07-07_06_ESPM154', # sleep
+        #'2025-07-07_06_ESPM154',  # sleep
         #'2025-07-02_05_ESPM135', # sleep
         #'2025-07-08_05_ESPM152'  # sleep
+        '2025-07-11_03_ESPM154'   # sleep
     ]
 
     userID = 'pmateosaparicio'

@@ -59,7 +59,8 @@ def preprocess_cam_run(userID, expID):
             raise Exception('The timing pulses on the eye camera look faulty - tunr on debug mode to see the figure')
 
     # Shift the logged frame times to align with the frame pulse times
-    loggedFrameTimes = eye_frameTimes - eye_frameTimes[0]
+    # IMPORTANT: frame 100 is when the first low to high timing signal transition happens!
+    loggedFrameTimes = eye_frameTimes - eye_frameTimes[100]
     loggedFrameTimes = loggedFrameTimes + framePulseTimes[0]
 
     # Periodically correct the logged frame times to align with the Timeline clock
@@ -93,10 +94,9 @@ def preprocess_cam_run(userID, expID):
 # for debugging:
 def main():
     # expID
-    expID = '2023-02-28_11_ESMT116'
-    expID = '2024-07-08_01_TEST'
-    # user ID to use to place processed data
-    userID = 'adamranson'
+    userID = 'pmateosaparicio'
+    expID = '2025-07-11_03_ESPM154'
+
     preprocess_cam_run(userID, expID)
 
 if __name__ == "__main__":

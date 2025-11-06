@@ -151,6 +151,7 @@ import subprocess
 import sys
 import preprocess_pupil
 import pickle
+from datetime import datetime
 
 
 def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, runfitpupil): 
@@ -215,6 +216,8 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
             cmd = ['/opt/scripts/conda-run.sh','suite2p','python','-u',s2p_launcher,userID,expID,tif_path,config_path]
 
         print('Starting S2P launcher...')
+        now = datetime.now()
+        print(now.strftime("%Y-%m-%d %H:%M:%S"))
         #subprocess.run(cmd, shell=True)
         # with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
 

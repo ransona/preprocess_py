@@ -5,7 +5,7 @@ import subprocess
 import sys
 import preprocess_pupil
 import pickle
-
+from datetime import datetime
 
 def run_preprocess_step1_meso(jobID,userID, expID, suite2p_config, runs2p, rundlc, runfitpupil): 
     print('Starting job: ' + jobID)
@@ -125,6 +125,8 @@ def run_preprocess_step1_meso(jobID,userID, expID, suite2p_config, runs2p, rundl
                     cmd = ['/opt/scripts/conda-run.sh','suite2p','python',s2p_launcher,userID,expID,tif_path,s2p_output_path,config_path]
 
                 print('Starting S2P launcher...')  
+                now = datetime.now()
+                print(now.strftime("%Y-%m-%d %H:%M:%S"))
                 #subprocess.run(cmd, shell=True)
                 # with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
 
@@ -151,9 +153,7 @@ def run_preprocess_step1_meso(jobID,userID, expID, suite2p_config, runs2p, rundl
                         with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
                             file.write(allOut)
                         raise Exception("An error occurred during the execution of suite2p")
-                
                 x=0
-
 
     if rundlc:
         # run DLC

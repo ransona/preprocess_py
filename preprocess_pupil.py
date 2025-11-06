@@ -32,7 +32,7 @@ def preprocess_pupil_run(userID, expID):
     if not os.path.exists(exp_dir_processed_recordings):
         os.mkdir(exp_dir_processed_recordings)
 
-    displayOn = True
+    displayOn = False
     displayInterval = 1000
 
 
@@ -72,8 +72,8 @@ def preprocess_pupil_run(userID, expID):
         pupilY = dlc_data.loc[:,2:23:3].values
         pupil_likelihood = dlc_data.loc[:,3:24:3].values
         # set XY positions with low confidence to zero, they will be then excluded
-        pupilX[pupil_likelihood<0.90] = 0
-        pupilY[pupil_likelihood<0.90] = 0
+        pupilX[pupil_likelihood<0.95] = 0
+        pupilY[pupil_likelihood<0.95] = 0
 
         # get minimum of eye x and eye y confidence from dlc
         # apply a median filter accross time to remove random blips 
@@ -198,9 +198,39 @@ def preprocess_pupil_run(userID, expID):
                 # to do this convert x y coordinates 
                 pupilIdx = np.ravel_multi_index([[pupilY[iFrame].astype(int)], [pupilX[iFrame].astype(int)]], frameSize)
                 inEye = eyeMask.flatten()[pupilIdx][0].astype(bool)
-
+                xpoints = pupilX[iFrame, inEye]
+                ypoints = pupilY[iFrame, inEye]
+                allpoints = np.concatenate((xpoints[np.newaxis,:],ypoints[np.newaxis,:]),axis=0).T
+                if np.sum(inEye)>0:
+                    # check if any pupil pounts are outliers
+                    # allpoints = your (N,2) array
+                    diffs = allpoints[:, None, :] - allpoints[None, :, :]
+                    dists = np.sqrt(np.sum(diffs**2, axis=-1))
+                    # maximum pairwise distance
+                    max_dist = np.max(dists)
+                    # mean distance of each point to all others
+                    mean_dists = np.mean(dists, axis=1)
+                    # set an outlier threshold, e.g. mean + 2*std
+                    threshold = np.mean(mean_dists) + 2 * np.std(mean_dists)
+                    # mark outliers
+                    outliers = mean_dists > threshold
+                    # print(f"max_dist: {max_dist:.2f}")
+                    # print("outliers:", outliers)
+                    # mark outliers in inEye
+                    inEye[inEye==True]=outliers==False
+                    # filter from allpoints
+                    allpoints = allpoints[outliers==False]
+                    # recalculate max distance with outliers removed
+                    # allpoints = your (N,2) array
+                    diffs = allpoints[:, None, :] - allpoints[None, :, :]
+                    dists = np.sqrt(np.sum(diffs**2, axis=-1))
+                    # maximum pairwise distance
+                    max_dist = np.max(dists)     
+                else:
+                    max_dist = 0
+                
+                # check that points are not all on one side of pupil etc
                 if np.sum(inEye) > 1:                
-                    # check that points are not all on one side of pupil etc
                     # Get the angles corresponding to True entries
                     angles = np.array(pupil_keypoint_angles)[np.array(inEye)]
                     # Compute all pairwise circular differences
@@ -212,15 +242,13 @@ def preprocess_pupil_run(userID, expID):
                     max_diff = 0
 
                 # fit a circle to those pupil points within the eye
-                xpoints = pupilX[iFrame, inEye]
-                ypoints = pupilY[iFrame, inEye]
-                allpoints = np.concatenate((xpoints[np.newaxis,:],ypoints[np.newaxis,:]),axis=0).T
-
                 if (np.sum(inEye) > 2) and (max_diff>135):
                     xCenter, yCenter, radius, _ = circle_fit(allpoints)
                     # sanity check the circle fit
+                    # 1) fited circle bigger than eye
+                    # 2) fitted circle >20% wider than max pupil point spacing (euclid)
                     fit_valid = True
-                    if radius > eyeWidth:
+                    if ((radius*2) > eyeWidth) or radius > ((max_dist/2)*1.3):
                         # pupil is bigger then long angle of eye opening - how could it have been detected?
                         fit_valid = False
                     elif (
@@ -377,11 +405,13 @@ def main():
             #'2025-07-04_04_ESPM154',
             #'2025-07-07_05_ESPM154',
             #'2025-07-02_03_ESPM135',
-            '2025-07-08_04_ESPM152',
+            #'2025-07-08_04_ESPM152',
             #'2025-07-04_06_ESPM154',
             #'2025-07-07_06_ESPM154',
             #'2025-07-02_05_ESPM135',
-            #'2025-07-08_05_ESPM152'
+            #'2025-07-08_05_ESPM152',
+            '2025-07-11_02_ESPM154',
+            '2025-07-11_03_ESPM154'
         ]
 
         for expID in allExpIDs:
