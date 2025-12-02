@@ -422,17 +422,16 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
             print("Devonvolution complete.")
 
             # debug plots for deconvolution
-            n_cells_to_show = 5
-            cell_idx = np.linspace(0,baseline.shape[0]*0.1,n_cells_to_show,dtype=int)            
-            fig, axes = plt.subplots(n_cells_to_show,1)
-            for k,iCell in enumerate(cell_idx):
-                axes[k].plot(F_valid[iCell,0:3000],color="red")
-                axes[k].plot(oasis_calcium[iCell,0:3000],color="black")
-                axes[k].plot(oasis_spikes[iCell,0:3000]+baseline[iCell,0:3000],color="gray")
-                axes[k].plot(baseline[iCell,0:3000],color="blue")
-                plt.show()
+            # n_cells_to_show = 5
+            # cell_idx = np.linspace(0,baseline.shape[0]*0.1,n_cells_to_show,dtype=int)            
+            # fig, axes = plt.subplots(n_cells_to_show,1)
+            # for k,iCell in enumerate(cell_idx):
+            #     axes[k].plot(F_valid[iCell,0:3000],color="red")
+            #     axes[k].plot(oasis_calcium[iCell,0:3000],color="black")
+            #     axes[k].plot(oasis_spikes[iCell,0:3000]+baseline[iCell,0:3000],color="gray")
+            #     axes[k].plot(baseline[iCell,0:3000],color="blue")
+            #     plt.show()
 
-           
             ####################
             # get times of each frame
             # mid frame time
@@ -526,38 +525,10 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
             tokenised_dF = np.stack((cell_ids, sample_times_flat, activity_flat_dF), axis=1)
             
             print("Tokenised neural activity matrix constructed.")
-            # sort tokenized matrices by time.
-            # tokenised_oasis_dF = tokenised_oasis_dF[np.argsort(tokenised_oasis_dF[:, 1])]
-            # tokenised_oasis_spikes = tokenised_oasis_spikes[np.argsort(tokenised_oasis_spikes[:, 1])]
-            # tokenised_dF = tokenised_dF[np.argsort(tokenised_dF[:, 1])]
 
             # accumulate data across depths
             print("Accumulating data across depths...")
             if dF_resampled.shape[0] > 0:
-                # then we have some rois
-                # if not(iCh in alldF):
-                #     # then this is the first depth so just store
-                #     alldF[iCh] = dF_resampled
-                #     allF[iCh] = F_resampled
-                #     allBaseline[iCh] = Baseline_resampled
-                #     allSpikes[iCh] = Spks_resampled
-                #     allDepths[iCh] = np.tile(iDepth, (np.sum(cellValid[:]).astype(int), 1))
-                #     all_oasis_spikes[iCh] =  oasis_spikes_resampled  # OASIS spike output (computed below)
-                #     all_oasis_dF[iCh] = oasis_calcium_resampled       # OASIS inferred calcium (computed below)                    
-                #     all_tokenised_oasis_dF[iCh] = tokenised_oasis_dF
-                #     all_tokenised_oasis_spikes[iCh] = tokenised_oasis_spikes
-                #     all_tokenised_dF[iCh] = tokenised_dF                    
-                # else:
-                #     # concatenate to what is already there
-                #     alldF[iCh] = np.concatenate((alldF[iCh],dF_resampled),axis=0)
-                #     allF[iCh] = np.concatenate((allF[iCh],F_resampled),axis=0)
-                #     allBaseline[iCh] = np.concatenate((allBaseline[iCh],Baseline_resampled),axis=0)
-                #     allSpikes[iCh] = np.concatenate((allSpikes[iCh],Spks_resampled),axis=0)
-                #     allDepths[iCh] = np.concatenate([allDepths[iCh], np.tile(iDepth, (np.sum(cellValid[:]).astype(int), 1))],axis=0)
-                #     all_tokenised_oasis_dF[iCh] = np.concatenate((all_tokenised_oasis_dF[iCh], tokenised_oasis_dF), axis=0)
-                #     all_tokenised_oasis_spikes[iCh] = np.concatenate((all_tokenised_oasis_spikes[iCh], tokenised_oasis_spikes), axis=0)
-                #     all_tokenised_dF[iCh] = np.concatenate((all_tokenised_dF[iCh], tokenised_dF), axis=0)
-                # Initialise as lists if not present
                 if iCh not in alldF:
                     alldF[iCh] = [dF_resampled]
                     allF[iCh] = [F_resampled]
@@ -664,20 +635,24 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
 def main():
     # debug mode
     allExpIDs = [
-    '2025-03-12_01_ESPM126', #ok
-    #'2022-02-07_03_ESPM039', #ok
-    #'2022-03-17_02_ESPM039', #ok
-    #'2021-11-16_06_ESPM040', #ok
-    #'2022-02-08_03_ESPM040',  #ok
-    #'2022-01-28_03_ESPM039', #ok
-    #'2022-02-07_05_ESPM039', #ok
-    #'2022-03-17_03_ESPM039', #ok
-    #'2021-11-16_08_ESPM040', #ok
-    #'2022-02-08_04_ESPM040'  #ok
+    '2025-03-12_01_ESPM126', 
+    '2025-03-13_02_ESPM126',
+    '2025-03-26_01_ESPM126', '2025-03-26_02_ESPM126',
+    '2025-02-26_02_ESPM126', 
+    '2025-04-01_01_ESPM127', '2025-04-01_02_ESPM127',
+    '2025-06-12_02_ESPM135', '2025-06-12_04_ESPM135',
+    '2025-06-13_01_ESPM135', '2025-06-13_02_ESPM135',
+    '2025-07-02_03_ESPM135', '2025-07-02_05_ESPM135',
+    '2025-07-08_04_ESPM152', '2025-07-08_05_ESPM152',
+    '2025-07-04_04_ESPM154', '2025-07-04_06_ESPM154',
+    '2025-07-07_05_ESPM154', '2025-07-07_06_ESPM154',
+    '2025-07-11_02_ESPM154', '2025-07-11_03_ESPM154',
+    # rivalry
+    '2025-07-17_01_ESPM154', '2025-07-17_04_ESPM154',
+    '2025-08-07_01_ESPM163', '2025-08-07_05_ESPM163',
+    '2025-08-12_01_ESPM164', '2025-08-12_04_ESPM164'
     ]
     userID = 'pmateosaparicio'
-    # userID = 'rubencorreia'
-    #expID=  '2025-06-12_04_ESPM135'
 
     for expID in allExpIDs:    
         run_preprocess_s2p(userID, expID, neuropil_coeff_config=[0.7 , 0.7]) 
