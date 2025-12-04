@@ -396,23 +396,32 @@ def main():
         userID = sys.argv[1]
         expID = sys.argv[2]
         print('Parameters received via command line')
+        preprocess_pupil_run(userID, expID)    
     except:
         # debug mode
         print('Parameters received via debug mode')
-        userID = 'pmateosaparicio'
-        expIDs = [
-            '2025-07-04_04_ESPM154',  # stim
-            '2025-07-07_05_ESPM154',  # stim
-            '2025-07-02_03_ESPM135',  # stim
-            '2025-07-08_04_ESPM152',  # stim
-            '2025-07-11_02_ESPM154',  # stim
-            '2025-07-04_06_ESPM154',  # sleep
-            '2025-07-07_06_ESPM154',  # sleep
-            '2025-07-02_05_ESPM135',  # sleep
-            '2025-07-08_05_ESPM152',  # sleep
-            '2025-07-11_03_ESPM154']  # sleep
+        # userID = 'pmateosaparicio'
+        # expIDs = [
+        #     '2025-07-04_04_ESPM154',  # stim
+        #     '2025-07-07_05_ESPM154',  # stim
+        #     '2025-07-02_03_ESPM135',  # stim
+        #     '2025-07-08_04_ESPM152',  # stim
+        #     '2025-07-11_02_ESPM154',  # stim
+        #     '2025-07-04_06_ESPM154',  # sleep
+        #     '2025-07-07_06_ESPM154',  # sleep
+        #     '2025-07-02_05_ESPM135',  # sleep
+        #     '2025-07-08_05_ESPM152',  # sleep
+        #     '2025-07-11_03_ESPM154']  # sleep
+        # # experiment lists
+        allExpIDs = ['2025-11-28_02_ESRC026']
+        userID = 'rubencorreia'
+
+        # allExpIDs_sleep = [
+        #     '2025-07-04_06_ESPM154',
+        #     '2025-07-07_06_ESPM154',
+        #     '2025-07-11_03_ESPM154',        
         
-        for expID in expIDs:
+        for expID in allExpIDs:
             preprocess_pupil_run(userID, expID)    
 
 if __name__ == "__main__":
