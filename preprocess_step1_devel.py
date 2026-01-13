@@ -172,7 +172,38 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
     # with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
     #     file.write(allOut)
 
-    #if queued_command['config']['runhabituate']:
+    if queued_command['config']['runhabituate']:
+        # should now have already done DLC + fit
+        # run code to 
+        # run code to take dlc output and fit circle to pupil etc
+        habituation_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/preprocess_habituation.py')
+        print('Running habituation launcher...')
+        cmd = ['conda','run' , '--no-capture-output','--name','sci','python',habituation_launcher,userID,expID]
+        # Run the command
+        #with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1) as proc:
+            # Read the output line by line and process it
+            for line in proc.stdout:
+                print(line)
+                allOut = allOut + line
+                sys.stdout.flush()
+                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+                    file.write(line)
+
+            # Read the error output line by line and process it
+            error_output = ""
+            for line in proc.stderr:
+                print("Error: " + line)
+                error_output += line
+                sys.stdout.flush()
+                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
+                    file.write(line)
+
+            proc.wait()
+            if proc.returncode != 0:
+                with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'w') as file:
+                    file.write(allOut)
+                raise Exception("An error occurred during the execution of habituation")        
 
 
 # for debugging:

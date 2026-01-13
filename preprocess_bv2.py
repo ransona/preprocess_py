@@ -341,7 +341,7 @@ def run_preprocess_bv2(userID, expID):
     # set smooth_window at start and end to the first and last value of the unsmoothed data
     wheel_pos_smooth[0:smooth_window] = wheel_pos_resampled[0]
     wheel_pos_smooth[-smooth_window:] = wheel_pos_resampled[-1]
-    # Calc diff between position samples (already in units of meters)
+    # Calc diff between position samples (already in units oyf meters)
     # mouse velocity in cm/sample (at 20Hz)
     wheel_velocity = np.diff(wheel_pos_smooth) 
     wheel_velocity = np.append(wheel_velocity, wheel_velocity[-1])
@@ -365,9 +365,9 @@ def run_preprocess_bv2(userID, expID):
     # for debugging:
 def main():
     # userID = 'melinatimplalexi'
-    userID = 'rubencorreia'
+    userID = 'pmateosaparicio'
     #userID = 'adamranson'
-    expID = '2025-10-10_09_ESPM171'
+    expID = '2025-04-01_02_ESPM127'
     run_preprocess_bv2(userID, expID)
 
 if __name__ == "__main__":

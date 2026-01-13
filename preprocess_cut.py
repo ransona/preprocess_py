@@ -247,26 +247,46 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
 
 # for debugging:
 def main():
-    userID = 'pmateosaparicio'
     pre_secs = 5
     post_secs = 5
     # debug mode
     allExpIDs = [
-        '2025-07-04_04_ESPM154', # stim
-        '2025-07-07_05_ESPM154', # stim
-        '2025-07-02_03_ESPM135', # stim
-        '2025-07-08_04_ESPM152', # stim
-        '2025-07-04_06_ESPM154', # sleep
-        '2025-07-07_06_ESPM154', # sleep
-        '2025-07-02_05_ESPM135', # sleep
-        '2025-07-08_05_ESPM152'  # sleep
+    # '2025-03-12_01_ESPM126', 
+    # '2025-03-13_02_ESPM126',
+    # '2025-03-26_01_ESPM126', '2025-03-26_02_ESPM126',
+    # '2025-04-01_01_ESPM127', 
+    '2025-04-01_02_ESPM127',
+    # '2025-06-12_02_ESPM135', '2025-06-12_04_ESPM135',
+    # '2025-06-13_01_ESPM135', '2025-06-13_02_ESPM135',
+    # '2025-07-02_03_ESPM135', '2025-07-02_05_ESPM135',
+    # '2025-07-08_04_ESPM152', '2025-07-08_05_ESPM152',
+    # '2025-07-04_04_ESPM154', '2025-07-04_06_ESPM154',
+    # '2025-07-07_05_ESPM154', '2025-07-07_06_ESPM154',
+    # '2025-07-11_02_ESPM154', '2025-07-11_03_ESPM154',
     ]
+    userID = 'pmateosaparicio'
 
-    # userID = 'rubencorreia'
-    #expID=  '2025-06-12_04_ESPM135'
-    for expID in allExpIDs:
-        print(expID)  
+    for expID in allExpIDs:    
         run_preprocess_cut(userID, expID, pre_secs, post_secs)
+
+    allExpIDs = [
+    # rivalry
+    '2025-07-17_01_ESPM154', '2025-07-17_04_ESPM154',
+    '2025-08-07_01_ESPM163', '2025-08-07_05_ESPM163',
+    '2025-08-12_01_ESPM164', '2025-08-12_04_ESPM164'
+    ]
+    userID = 'melinatimplalexi'
+
+    for expID in allExpIDs:    
+        run_preprocess_cut(userID, expID, pre_secs, post_secs)      
+
+    allExpIDs = [
+    '2025-02-26_02_ESPM126']
+    userID = 'adamranson'    
+
+    for expID in allExpIDs:    
+        run_preprocess_cut(userID, expID, pre_secs, post_secs)
+
 
 if __name__ == "__main__":
     main()
