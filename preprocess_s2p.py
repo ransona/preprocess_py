@@ -16,15 +16,7 @@ import pickle
 import organise_paths
 from tqdm import tqdm
 from joblib import Parallel, delayed
-# OASIS imports
-import warnings
-warnings.filterwarnings("ignore", module="oasis")
-from oasis.functions import deconvolve
-from oasis.functions import gen_data, gen_sinusoidal_data, estimate_parameters
-from oasis.plotting import simpleaxis
-from oasis.oasis_methods import oasisAR1, oasisAR2
 import gc
-
 import os
 
 # info:
@@ -97,25 +89,13 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
     allBaseline = {}
     allF = {}
     allSpikes = {}          # S2P spike output
-    #all_oasis_spikes = {}   # OASIS spike output (computed below)
-    #all_oasis_dF = {}       # OASIS inferred calcium (computed below)
-    # tokenised data
-    #all_tokenised_oasis_dF = {}
-    #all_tokenised_oasis_spikes = {}
-    all_tokenised_dF_spikes = {}
-    all_tokenised_dF = {}   
+    all_tokenised_dF_spikes = {}  
 
     allDepths = {}
     allRoiPix = {}
     allRoiMaps = {}
     allFOV = {}
-    
-    # this will be used to make all recordings 2 secs shorter than the
-    # first ca trace processed to ensure all chs and depths are the same length
-    expFrameLength = []
-    
-    # outputTimes = Timeline.time(1):1/resampleFreq:Timeline.time(end);
-    
+        
     # check number of channels
     if os.path.exists(os.path.join(exp_dir_processed, 'ch2')):
         # then there are 2 functional channels
@@ -126,21 +106,10 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
     
     # check number of depths
     depthCount = len([d for d in os.listdir(dataPath[0]) if "plane" in d])
-    
-    if depthCount == 1:
-        # then we might be doing frame averaging
-        #load(fullfile(expRoot,'tifHeader.mat'));
-        #acqNumAveragedFrames = header.acqNumAveragedFrames;
-        acqNumAveragedFrames = 1
-    else:
-        # then we assume no averaging
-        acqNumAveragedFrames = 1
-    
+        
     # determine which channel has frame timing pulses
     neuralFramesIdx = np.where(np.isin(tl_chNames, 'MicroscopeFrames'))[0][0]
     neuralFramesPulses = np.squeeze((tl_daqData[:,neuralFramesIdx]>1).astype(int))
-    # divide the frame counter by the number of depths & averaging factor.
-    #Timeline.rawDAQData(:,neuralFramesIdx)=ceil(Timeline.rawDAQData(:,neuralFramesIdx)/depthCount/acqNumAveragedFrames);
 
     # determine time of each frame
     # frameTimes will be the mid-frame time
@@ -163,13 +132,11 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
     print()
     for iCh in range(len(dataPath)):
         accumulated_rois = 0
+        allRoiPix[iCh] = {}
+        allRoiMaps[iCh] = {}
+        allFOV[iCh] = {}        
         for iDepth in range(depthCount):
             print('Starting Ch'+str(iCh)+' Depth '+str(iDepth))
-            allRoiPix[iCh] = {}
-            #allRoiPix[iCh][iDepth] = np.array([])
-            allRoiMaps[iCh] = {}
-            #allRoiMaps[iCh][iDepth] = np.array([])
-            allFOV[iCh] = {}
             # load s2p data
             Fall = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'F.npy'))
             Fneu = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'Fneu.npy'))
@@ -185,8 +152,8 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
             # load numpy file containing cell classification
             cellValid = np.load(os.path.join(dataPath[iCh], 'plane'+str(iDepth), 'iscell.npy'))
             cellValid = cellValid[:,0]
-            # overall video contamination subtraction
 
+            # overall video contamination subtraction
             if Fneu.shape[0] == 0:
                 # then there are no rois detected in the plane
                 meanFrameTimecourse = np.zeros([1,Fall.shape[0]])
@@ -194,6 +161,7 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
                 # RECALC this using median of all neuropils
                 meanFrameTimecourse = np.median(Fneu,0)
                 meanFrameTimecourse = meanFrameTimecourse - min(meanFrameTimecourse)
+
             # check if any roi Fs are all zero. s2p sometimes throws these
             # up for some reason. if these are found set iscell to false
             zeroROIs = ((np.max(Fall, axis=1) == 0) & (np.min(Fall, axis=1) == 0)).astype(int)
@@ -299,18 +267,11 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
             baseline_min_window_size = (30 * frameRatePerPlane).round().astype(int)
             kernel = np.ones((1, smoothingWindowSize)) / smoothingWindowSize
             smoothed = signal.convolve2d(F_valid, kernel, mode='same')
-            # remove edge effects
-            # at start
+            # remove edge effects at start
             smoothed[:, :smoothingWindowSize] = np.tile(smoothed[:, smoothingWindowSize+1].reshape(smoothed.shape[0],1), [1, smoothingWindowSize])
             smoothed[:, -smoothingWindowSize:] = np.tile(smoothed[:, -smoothingWindowSize-1].reshape(smoothed.shape[0],1), [1, smoothingWindowSize])
             # replace nans with large values (so they don't get picked up as mins)
             smoothed[np.isnan(smoothed)] = np.max(smoothed)*2
-            # sliding min:
-            # compute the sliding window minimum with a window size of 3 over the second dimension
-            # baseline = np.apply_along_axis(lambda smoothed: np.minimum.accumulate(np.concatenate([smoothed, np.repeat(smoothed[-1], baseline_min_window_size)]))[baseline_min_window_size:], axis=1, arr=smoothed)
-            # baseline = minimum_filter1d(smoothed, size=baseline_min_window_size, axis=1)
-            # baseline = np.apply_along_axis(lambda smoothed: np.pad(np.percentile(sliding_window_view(smoothed, baseline_min_window_size), 20, axis=1), (baseline_min_window_size - 1, 0), mode='edge'), axis=1, arr=smoothed)
-            # print("dF/F baseline calculated.")
 
             def efficient_causal_sliding_percentile_2d(data, window, step=1, percentile=20):
                 """
@@ -345,12 +306,11 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
 
                 return baseline
         
-            # make step size 30 seconds   
             pencentile_window_step_size_secs = 10
             pencentile_window_step_size_samples = (pencentile_window_step_size_secs * frameRatePerPlane).round().astype(int) 
             f_percentile = 10   
             baseline = efficient_causal_sliding_percentile_2d(data = smoothed, window = baseline_min_window_size, step=pencentile_window_step_size_samples, percentile=f_percentile) 
-            print("dF/F baseline2 calculated.")
+            print("dF/F baseline calculated.")
 
             # debugging plots for baseline calculation
             # n_cells_to_show = 10
@@ -362,11 +322,12 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
             #     axes[k].plot(Spks_valid[iCell,0:3000]+baseline[iCell,0:3000],color="black")
             #     axes[k].plot(baseline[iCell,0:3000],color="blue")
                 
-            plt.show()
+            # plt.show()
                 
-             # # calculate dF/F
+            # calculate dF/F
             print("Calculating dF/F...")           
             dF = (F_valid-baseline) / baseline
+            # spikes are already baseline subtracted so only divide by baseline
             dF_spikes = Spks_valid / baseline
             print("dF/F calculated.")
 
@@ -380,78 +341,6 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
             #     axes[k].plot(dF_spikes[iCell,0:3000],color="black")
                 
             # plt.show()            
-
-            # preallocate to store spike deconvolution output
-            oasis_spikes = np.zeros(dF.shape)
-            oasis_calcium = np.zeros(dF.shape)
-
-            # OASIS deconvolution can be truned back on with this block of code
-            # ///////////// OASIS START ///////////// 
-
-            # def process_cell(iCell,cell_trace):
-            #     y_offset = np.min(cell_trace)
-            #     cell_trace = cell_trace - y_offset
-            #     with warnings.catch_warnings():
-            #         warnings.simplefilter("ignore")
-            #         c, s, b, g, lam = deconvolve(cell_trace, penalty=0)
-            #     # s[s < 0.05] = 0
-            #     # add offset and baseline back on to calcium signal estimation of model
-            #     c = c + b + y_offset
-            #     return iCell, s, c
-
-            # # Parallel execution
-            # if os.getenv("DEBUGPY_RUNNING"):
-            #     # single-threaded when debugging
-            #     print("Debugging mode detected, running single-threaded.")
-            #     for iCell in tqdm(range(dF.shape[0]), desc="Processing cells", unit="cell"):
-            #         # add a percentage complete display that shows progress bar
-            #         pass
-            #         # if np.mod(iCell, 10) == 0:
-            #         #     print(f'Cell {iCell} of {dF.shape[0]} ({(iCell/dF.shape[0])*100:.1f}%)')
-            #         # pull out current cell
-            #         cell_trace = dF[iCell,:]# dF[iCell,:]
-            #         # add an offset to ensure all values are positive
-            #         y_offset = np.min(cell_trace)
-            #         cell_trace = cell_trace - y_offset
-            #         # deconvolve
-            #         c, s, b, g, lam = deconvolve(cell_trace, penalty=0)
-            #         # threshold under assumption that transitions of < 0.05 are noise based on approx
-            #         # min 1AP response described here https://pubmed.ncbi.nlm.nih.gov/36922596/#&gid=article-figures&pid=fig-4-uid-3
-            #         # s[s<0.05] = 0 # removed 02.12.25 to see if we were losing information
-            #         # add offset back on to calcium signal estimation of model
-            #         c = c + b + y_offset
-            #         # store data
-            #         oasis_spikes[iCell,:] = s
-            #         oasis_calcium[iCell,:] = c
-            # else:
-            #     print("Running multi-threaded.")
-            #     results = Parallel(n_jobs=-1, prefer="processes")(
-            #         delayed(process_cell)(iCell,dF[iCell,:])
-            #         for iCell in tqdm(range(dF.shape[0]), desc="Processing cells", unit="cell")
-            #     )
-            #     # Collect results
-            #     for iCell, s, c in results:
-            #         oasis_spikes[iCell, :] = s
-            #         oasis_calcium[iCell, :] = c  
-
-            # print("Devonvolution complete.")
-
-            # ///////////// OASIS END ///////////// 
-
-            
-
-            # debug plots for deconvolution
-            # n_cells_to_show = 5
-            # cell_idx = np.linspace(0,baseline.shape[0]*0.1,n_cells_to_show,dtype=int)            
-            # fig, axes = plt.subplots(n_cells_to_show,1)
-            # for k,iCell in enumerate(cell_idx):
-            #     axes[k].plot(dF[iCell,0:3000],color="red")
-            #     axes[k].plot(dF_spikes[iCell,0:3000],color="black")
-            #     axes[k].plot(oasis_spikes[iCell,0:3000],color="blue")
-            # axes[k].legend(['dF/F','s2p spikes','oasis spikes'])
-            # plt.show()
-
-            
 
             ####################
             # get times of each frame
@@ -475,8 +364,6 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
             dF = dF[:,:min_frame_count]
             dF_spikes = dF_spikes[:,:min_frame_count]
             F_valid = F_valid[:,:min_frame_count]
-            oasis_spikes = oasis_spikes[:,:min_frame_count]
-            oasis_calcium = oasis_calcium[:,:min_frame_count]
 
             # resample to get desired sampling rate. note '.T' is the transpose to get matrix orientation correct for interpolation
             print("Resampling to desired output frequency...")
@@ -490,8 +377,6 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
             F_resampled = F_valid[:, idx]
             Spks_resampled = dF_spikes[:, idx]
             Baseline_resampled = baseline[:, idx]
-            oasis_spikes_resampled = oasis_spikes[:, idx]
-            oasis_calcium_resampled = oasis_calcium[:, idx]
 
             print("Resampling complete.")
             # if there is only one cell ensure it is rotated to (cell,time) orientation
@@ -501,13 +386,11 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
                 F_resampled = F_resampled[np.newaxis,:]
                 Spks_resampled = Spks_resampled[np.newaxis,:]
                 Baseline_resampled = Baseline_resampled[np.newaxis,:]
-                oasis_spikes_resampled = oasis_spikes_resampled[np.newaxis,:]
-                oasis_calcium_resampled = oasis_calcium_resampled[np.newaxis,:]
 
             # pick out valid cells
             allRoiPix[iCh] = {}
 
-            # construct tokenised neural response representation where you have cell ID,timestamp,spike/df value
+            # construct tokenised neural response representation where you have cell ID,timestamp,spike value
             # Inputs:
             # y_coords: shape (n_cells,)
             # frame_height: scalar
@@ -536,12 +419,9 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
             sample_times_flat = sample_times.flatten()
             # activity from suite2p spike deconvolution
             activity_flat_dF_spikes = dF_spikes.flatten()
-            # activity from raw dF/F
-            activity_flat_dF = dF.flatten()
 
             # Combine into final tokenized matrices [cell_id, sample_time, activity] of depth
             tokenised_dF_spikes = np.stack((cell_ids, sample_times_flat, activity_flat_dF_spikes), axis=1)
-            tokenised_dF = np.stack((cell_ids, sample_times_flat, activity_flat_dF), axis=1)
             
             print("Tokenised neural activity matrix constructed.")
 
@@ -554,30 +434,19 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
                     allBaseline[iCh] = [Baseline_resampled]
                     allSpikes[iCh] = [Spks_resampled]
                     allDepths[iCh] = [np.tile(iDepth, (np.sum(cellValid[:]).astype(int), 1))]
-                    #all_oasis_spikes[iCh] = [oasis_spikes_resampled]
-                    #all_oasis_dF[iCh] = [oasis_calcium_resampled]
-                    #all_tokenised_oasis_dF[iCh] = [tokenised_oasis_dF]
                     all_tokenised_dF_spikes[iCh] = [tokenised_dF_spikes]
                     dF_spikes
-                    all_tokenised_dF[iCh] = [tokenised_dF]
                 else:
                     alldF[iCh].append(dF_resampled)
                     allF[iCh].append(F_resampled)
                     allBaseline[iCh].append(Baseline_resampled)
                     allSpikes[iCh].append(Spks_resampled)
                     allDepths[iCh].append(np.tile(iDepth, (np.sum(cellValid[:]).astype(int), 1)))
-                    #all_oasis_spikes[iCh].append(oasis_spikes_resampled)
-                    #all_oasis_dF[iCh].append(oasis_calcium_resampled)
-                    #all_tokenised_oasis_dF[iCh].append(tokenised_oasis_dF)
-                    #all_tokenised_oasis_spikes[iCh].append(tokenised_oasis_spikes)
                     all_tokenised_dF_spikes[iCh].append(tokenised_dF_spikes)
-                    all_tokenised_dF[iCh].append(tokenised_dF)
 
                     del dF_resampled, F_resampled, Baseline_resampled, Spks_resampled
-                    del oasis_spikes_resampled, oasis_calcium_resampled
-                    del tokenised_oasis_dF, tokenised_oasis_spikes, tokenised_dF
+                    del tokenised_dF_spikes
                     del dF,dF_spikes,F_valid,Spks_valid,baseline
-                    del oasis_spikes, oasis_calcium
                     gc.collect()
 
             print("Accumulation complete.")
@@ -585,18 +454,15 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
             allRoiMaps[iCh][iDepth] = roiMap
             allFOV[iCh][iDepth] = s2p_ops['meanImg']
 
-    print('Concatinating final output...')
+    print('Concatenating final output...')
+    # axis 0 dim is depth so concat here combines all depths
     for iCh in alldF:
         alldF[iCh] = np.concatenate(alldF[iCh], axis=0)
         allF[iCh] = np.concatenate(allF[iCh], axis=0)
         allBaseline[iCh] = np.concatenate(allBaseline[iCh], axis=0)
         allSpikes[iCh] = np.concatenate(allSpikes[iCh], axis=0)
         allDepths[iCh] = np.concatenate(allDepths[iCh], axis=0)
-        all_oasis_spikes[iCh] = np.concatenate(all_oasis_spikes[iCh], axis=0)
-        all_oasis_dF[iCh] = np.concatenate(all_oasis_dF[iCh], axis=0)
-        all_tokenised_oasis_dF[iCh] = np.concatenate(all_tokenised_oasis_dF[iCh], axis=0)
-        all_tokenised_oasis_spikes[iCh] = np.concatenate(all_tokenised_oasis_spikes[iCh], axis=0)
-        all_tokenised_dF[iCh] = np.concatenate(all_tokenised_dF[iCh], axis=0)
+        all_tokenised_dF_spikes[iCh] = np.concatenate(all_tokenised_dF_spikes[iCh], axis=0)
 
     print('Saving 2-photon data...')
     # save
@@ -604,22 +470,18 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
         # make a dict where all of the experiment data is stored
         ca_data = {}
         ca_data_tokenised = {}
-        ca_data_oasis= {}
         ca_data['dF']           = alldF[iCh].astype(np.float32)
         ca_data['F']            = allF[iCh].astype(np.int16)
         ca_data['Spikes']       = allSpikes[iCh].astype(np.float32)
         ca_data['Baseline']     = allBaseline[iCh].astype(np.int16)
-        # oasis outputs
-        ca_data_oasis['oasis_dF']     = (all_oasis_dF[iCh]*100).astype(np.int16)
-        ca_data_oasis['oasis_spikes'] = (all_oasis_spikes[iCh]*100).astype(np.uint16)
-
 
         # tokenised data
         # sort tokenised matrices by time.
         # CRITICAL NOTE: sorting by token time alone does not give consistent cell order due to rounding errors
         #                of neuron timestamps that are very close in time. This can cause swapping of neuron order!
-        all_tokenised_oasis_spikes[iCh] = all_tokenised_oasis_spikes[iCh][np.lexsort((all_tokenised_oasis_spikes[iCh][:, 0], np.round(all_tokenised_oasis_spikes[iCh][:, 1], 9)))]
-        ca_data_tokenised['tokenised_oasis_spikes'] = all_tokenised_oasis_spikes[iCh].astype(np.float32)
+        all_tokenised_dF_spikes[iCh] = all_tokenised_dF_spikes[iCh][np.lexsort((all_tokenised_dF_spikes[iCh][:, 0], np.round(all_tokenised_dF_spikes[iCh][:, 1], 9)))]
+        # type cast
+        ca_data_tokenised['tokenised_oasis_spikes'] = all_tokenised_dF_spikes[iCh].astype(np.float32)
         
         # other data
         ca_data['Depths']       = allDepths[iCh]
@@ -627,12 +489,7 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
         ca_data['AllRoiMaps']   = allRoiMaps[iCh]
         ca_data['AllFOV']       = allFOV[iCh]
         ca_data['t']            = outputTimes
-
-        ca_data_oasis['Depths']       = allDepths[iCh]
-        ca_data_oasis['AllRoiPix']    = allRoiPix[iCh]
-        ca_data_oasis['AllRoiMaps']   = allRoiMaps[iCh]
-        ca_data_oasis['AllFOV']       = allFOV[iCh]
-        ca_data_oasis['t']            = outputTimes        
+      
         # write out main data
         output_filename = 's2p_ch' + str(iCh)+'.pickle'
         pickle_out = open(os.path.join(exp_dir_processed_recordings,output_filename),"wb")
@@ -643,11 +500,7 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
         pickle_out = open(os.path.join(exp_dir_processed_recordings,output_filename),"wb")
         pickle.dump(ca_data_tokenised, pickle_out)
         pickle_out.close()
-        # write out oasis data
-        output_filename = 's2p_oasis_ch' + str(iCh)+'.pickle'
-        pickle_out = open(os.path.join(exp_dir_processed_recordings,output_filename),"wb")
-        pickle.dump(ca_data_oasis, pickle_out)
-        pickle_out.close()
+
 
     print('2-photon preprocessing done')
 

@@ -52,16 +52,6 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
         pickle_in = open(os.path.join(exp_dir_processed_recordings,iS2P_file),"rb")
         ca_data = pickle.load(pickle_in)
         pickle_in.close
-        # load oasis data
-        oasis_filename = 's2p_oasis_' + iS2P_file[4:]
-        try:
-            pickle_in = open(os.path.join(exp_dir_processed_recordings,oasis_filename),"rb")
-            oasis_data = pickle.load(pickle_in)
-            pickle_in.close
-            do_oasis = True
-        except:
-            print('OASIS data not found for ' + iS2P_file)
-            do_oasis = False
     
 
         # preallocate an array with shape:
@@ -77,11 +67,6 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
         s2p_F_cut['F'] = np.full([roi_count, trial_count,max_snippet_len],np.nan,dtype=np.int16)
         s2p_Spikes_cut['Spikes'] = np.full([roi_count, trial_count,max_snippet_len],np.nan,dtype=np.float16)
 
-        if do_oasis:
-            oasis_dF_cut = {}
-            oasis_spikes_cut = {}
-            oasis_dF_cut['oasis_dF'] = np.full([roi_count, trial_count,max_snippet_len],np.nan,dtype=np.int16)
-            oasis_spikes_cut['oasis_spikes'] = np.full([roi_count, trial_count,max_snippet_len],np.nan,dtype=np.uint16)
 
         for iTrial in range(all_trials.shape[0]):
             trial_onset_time = all_trials.loc[iTrial,'time']
@@ -100,12 +85,6 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
                 s2p_F_cut['F'][iCell,iTrial,0:len(snippet_to_insert)]=snippet_to_insert
                 snippet_to_insert = ca_data['Spikes'][iCell,first_sample:last_sample]
                 s2p_Spikes_cut['Spikes'][iCell,iTrial,0:len(snippet_to_insert)]=snippet_to_insert
-                # do the same for oasis data
-                if do_oasis:
-                    snippet_to_insert = oasis_data['oasis_dF'][iCell,first_sample:last_sample]
-                    oasis_dF_cut['oasis_dF'][iCell,iTrial,0:len(snippet_to_insert)]=snippet_to_insert
-                    snippet_to_insert = oasis_data['oasis_spikes'][iCell,first_sample:last_sample]
-                    oasis_spikes_cut['oasis_spikes'][iCell,iTrial,0:len(snippet_to_insert)]=snippet_to_insert
 
         # debug:
         #plt.imshow(np.squeeze(ca_cut[0,:,:]),aspect='auto',cmap='gray', extent=[ca_cut_t[0],ca_cut_t[-1],-1,1],interpolation="nearest") 
@@ -116,12 +95,6 @@ def run_preprocess_cut(userID, expID,pre_time,post_time):
         with open(os.path.join(exp_dir_processed_cut,iS2P_file[0:7]+'_dF_cut.pickle'), 'wb') as f: pickle.dump(s2p_dF_cut, f)
         with open(os.path.join(exp_dir_processed_cut,iS2P_file[0:7]+'_F_cut.pickle'), 'wb') as f: pickle.dump(s2p_F_cut, f)
         with open(os.path.join(exp_dir_processed_cut,iS2P_file[0:7]+'_Spikes_cut.pickle'), 'wb') as f: pickle.dump(s2p_Spikes_cut, f)
-
-        if do_oasis:
-            oasis_dF_cut['t'] = s2p_dF_cut['t']
-            oasis_spikes_cut['t'] = s2p_dF_cut['t']
-            with open(os.path.join(exp_dir_processed_cut,iS2P_file[0:7]+'_oasis_dF_cut.pickle'), 'wb') as f: pickle.dump(oasis_dF_cut, f)
-            with open(os.path.join(exp_dir_processed_cut,iS2P_file[0:7]+'_oasis_spikes_cut.pickle'), 'wb') as f: pickle.dump(oasis_spikes_cut, f)
 
     ### Cut ephys data ###
     ephys_combined = np.load(os.path.join(exp_dir_processed_recordings,'ephys.npy'))
