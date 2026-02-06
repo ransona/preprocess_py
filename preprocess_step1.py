@@ -107,7 +107,7 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
         dlc_launcher = os.path.join('/home','adamranson', 'code/preprocess_py/dlc_launcher.py')
         print('Running DLC launcher...')
         # cmd = ['conda','run' , '--no-capture-output','--name','dlc-cuda','python',dlc_launcher,userID,expID]
-        cmd = ['/opt/scripts/conda-run.sh','dlc-cuda','python',dlc_launcher,userID,expID]
+        cmd = ['/opt/scripts/conda-run.sh','DLC_05_02_2026','python',dlc_launcher,userID,expID]
         # Run the command
         #with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
         with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:

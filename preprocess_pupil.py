@@ -34,17 +34,25 @@ def preprocess_pupil_run(userID, expID):
 
     displayOn = False
     displayInterval = 1000
+    
+    # this should be set high once model is working
+    pupil_likelihood_threshold = 0
+    print('WARNING: pupil pupil_likelihood_threshold = 0. Set higher once model working!')
 
 
     print('Starting ' + expID)
 
-    dlc_filenames = [expID + '_eye1_leftDLC_resnet50_Trial_newMay19shuffle1_1030000.csv',
-                    expID + '_eye1_rightDLC_resnet50_Trial_newMay19shuffle1_1030000.csv']
+    # dlc_filenames = [expID + '_eye1_leftDLC_resnet50_Trial_newMay19shuffle1_1030000.csv',
+    #                 expID + '_eye1_rightDLC_resnet50_Trial_newMay19shuffle1_1030000.csv']
+    
+    # 05.02.26 - new model
+    dlc_filenames = [expID + '_eye1_leftDLC_Resnet50_all_setupsDec10shuffle3_snapshot_best-80.csv',
+                    expID + '_eye1_rightDLC_Resnet50_all_setupsDec10shuffle3_snapshot_best-80.csv']    
 
     vid_filenames = [expID + '_eye1_left.avi',
                     expID + '_eye1_right.avi']
-
-
+    
+     
     pupil_keypoint_angles = [0,180,90,270,315,45,135,225]
 
     for iVid in range(0, len(dlc_filenames)):
@@ -52,6 +60,14 @@ def preprocess_pupil_run(userID, expID):
         print('Starting video ' + str(iVid))
 
         videoPath = os.path.join(exp_dir_processed, vid_filenames[iVid])
+
+        # check video size
+        cap = cv2.VideoCapture(videoPath)
+        print(int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+        # frame size H x W
+        frameSize = [int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))]
+        cap.release()
+
         # check if cropped videos are in the processed data directory and if not try to copy from the remote repos
         # this can be removed in the future 
         if not os.path.isfile(os.path.join(exp_dir_processed, vid_filenames[iVid])):
@@ -61,8 +77,6 @@ def preprocess_pupil_run(userID, expID):
                 print('Cropped eye videos not found on server')
 
         
-        if displayOn:
-            cap = cv2.VideoCapture(videoPath)
         # read the csv deeplabcut output file
         dlc_data = pd.read_csv(os.path.join(exp_dir_processed, dlc_filenames[iVid]), delimiter=',',skiprows=[0,1,2],header=None)
 
@@ -72,9 +86,9 @@ def preprocess_pupil_run(userID, expID):
         pupilY = dlc_data.loc[:,2:23:3].values
         pupil_likelihood = dlc_data.loc[:,3:24:3].values
         # set XY positions with low confidence to zero, they will be then excluded
-        pupilX[pupil_likelihood<0.95] = 0
-        pupilY[pupil_likelihood<0.95] = 0
-
+        
+        pupilX[pupil_likelihood<pupil_likelihood_threshold] = 0
+        pupilY[pupil_likelihood<pupil_likelihood_threshold] = 0
         # get minimum of eye x and eye y confidence from dlc
         # apply a median filter accross time to remove random blips 
         eyeX = median_filter(eyeX,[3,1])
@@ -84,9 +98,7 @@ def preprocess_pupil_run(userID, expID):
         # eye x and eye y are always needed as a minimum to process a frame so
         # we ensure below that these coordinates all have confidence > 0.8
         eyeMinConfid = np.min(dlc_data.loc[:,26::3], axis=1)
-        #ret, firstFrame = v.read()
-        #frameSize = np.squeeze(firstFrame[:,:,0]).shape
-        frameSize = [478,742]
+
         # choose approximate eye area - points outside this will be considered
         # invalid
         roiLeft = np.median(eyeX[:,2],0).astype(int)
@@ -95,14 +107,29 @@ def preprocess_pupil_run(userID, expID):
         roiHeight = (np.median(eyeY[:,3]) - roiTop).astype(int)
         padding = int((roiWidth * 0.75))
 
-        # for debugging the assumed eye position:
-        # plt.figure()
-        # plt.imshow(firstFrame)
-        # rect = plt.Rectangle((roiLeft-padding,roiTop-padding), roiWidth+padding*2, roiHeight+padding*2, edgecolor='r', fill=False)
-        # ax = plt.gca()
-        # ax.add_patch(rect)
-        # plt.show()
-        # plt.close()
+        # for debugging the assumed eye position and detected points on first frame:
+        if displayOn:
+            cap = cv2.VideoCapture(videoPath)            
+            plt.ion()
+            fig, ax = plt.subplots()
+            ret, frame = cap.read()
+            im = ax.imshow(frame)
+            rect = plt.Rectangle((roiLeft-padding, roiTop-padding),
+                                roiWidth+2*padding, roiHeight+2*padding,
+                                edgecolor="r", fill=False)
+            ax.add_patch(rect)
+            eye_sc = ax.scatter([], [])
+            pupil_sc = ax.scatter([], [])
+            frame_num = -1
+            while True:
+                frame_num = frame_num + 1
+                ret, frame = cap.read()
+                if not ret: break
+                im.set_data(frame)
+                eye_sc.set_offsets(list(zip(eyeX[frame_num,:], eyeY[frame_num,:])))
+                pupil_sc.set_offsets(list(zip(pupilX[frame_num,:], pupilY[frame_num,:])))
+                plt.pause(0.01)
+            plt.close()
         #############
         validRegionMask = np.zeros(frameSize)
         topLimit = roiTop-padding
@@ -413,8 +440,8 @@ def main():
         #     '2025-07-08_05_ESPM152',  # sleep
         #     '2025-07-11_03_ESPM154']  # sleep
         # # experiment lists
-        allExpIDs = ['2025-11-28_02_ESRC026']
-        userID = 'rubencorreia'
+        allExpIDs = ['2026-01-20_02_ESRC027']
+        userID = 'adamranson'
 
         # allExpIDs_sleep = [
         #     '2025-07-04_06_ESPM154',
