@@ -128,21 +128,21 @@ def dlc_launcher_run(userID, expID):
             exp_dir_raw = organise_paths.find_paths(userID, expID)
     # make output directory if it doesn't already exist
     os.makedirs(exp_dir_processed, exist_ok = True)
-    # # removing all existing dlc data
-    # for filename in os.listdir(exp_dir_processed):
-    #     if 'eye1_left' in filename:
-    #         print('Deleting ' + filename)
-    #         os.remove(os.path.join(exp_dir_processed, filename))
-    # # removing all existing dlc data
-    # for filename in os.listdir(exp_dir_processed):
-    #     if 'eye1_right' in filename:
-    #         print('Deleting ' + filename)
-    #         os.remove(os.path.join(exp_dir_processed, filename))
+    # removing all existing dlc data
+    for filename in os.listdir(exp_dir_processed):
+        if 'eye1_left' in filename:
+            print('Deleting ' + filename)
+            os.remove(os.path.join(exp_dir_processed, filename))
+    # removing all existing dlc data
+    for filename in os.listdir(exp_dir_processed):
+        if 'eye1_right' in filename:
+            print('Deleting ' + filename)
+            os.remove(os.path.join(exp_dir_processed, filename))
 
-    # print('Starting cropping videos...')
-    # # crop raw video into videos for each eye
-    # crop_vids(userID, expID)
-    # crop_vids(userID, expID)
+    print('Starting cropping videos...')
+    # crop raw video into videos for each eye
+    crop_vids(userID, expID)
+
     config_path = '/data/common/dlc_models/all_setups-rubencorreia-2025-12-10/config.yaml'
     
     left_video = os.path.join(exp_dir_processed, (expID + '_eye1_left.avi'))
