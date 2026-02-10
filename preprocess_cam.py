@@ -7,7 +7,7 @@ import pickle
 from datetime import datetime
 
 def preprocess_cam_run(userID, expID):
-    debug_mode = False
+    debug_mode = True
     print('Starting preprocess_cam_run...')
     animalID, remote_repository_root, \
     processed_root, exp_dir_processed, \
@@ -90,10 +90,6 @@ def preprocess_cam_run(userID, expID):
         raise Exception('Need at least 2 timing pulses to perform jitter-based phase matching')
 
     if runPhaseDetection:
-        # External DAQ interval jitter template (reference pattern).
-        tlPulseIntervals = np.diff(framePulseTimesAnalysis)
-        tlIntervalJitter = tlPulseIntervals - np.median(tlPulseIntervals)
-
         bestPhase = None
         bestCorr = -np.inf
         phaseMetrics = []
@@ -101,13 +97,18 @@ def preprocess_cam_run(userID, expID):
             # Build the list of frame indices that would correspond to timing edges
             # under this candidate phase.
             candidatePulseFrameNumbers = phase + 100 * np.arange(len(framePulseTimesAnalysis))
-            if candidatePulseFrameNumbers[-1] >= len(eye_frameTimes):
+            nComparable = np.sum(candidatePulseFrameNumbers < len(eye_frameTimes))
+            if nComparable < 3:
                 continue
+            candidatePulseFrameNumbers = candidatePulseFrameNumbers[:nComparable]
+            candidateFramePulseTimes = framePulseTimesAnalysis[:nComparable]
 
             # Video-side interval jitter for the same number of candidate edges.
             candidatePulseTimes = eye_frameTimes[candidatePulseFrameNumbers]
             candidatePulseIntervals = np.diff(candidatePulseTimes)
             candidateIntervalJitter = candidatePulseIntervals - np.median(candidatePulseIntervals)
+            tlPulseIntervals = np.diff(candidateFramePulseTimes)
+            tlIntervalJitter = tlPulseIntervals - np.median(tlPulseIntervals)
 
             if np.std(candidateIntervalJitter) == 0 or np.std(tlIntervalJitter) == 0:
                 corr = -np.inf
@@ -168,16 +169,21 @@ def preprocess_cam_run(userID, expID):
     #
     # This enforces exact agreement at every detected edge but does not stretch/compress
     # time within each 100-frame block.
-    framePulseFrameNumbers = bestPhase + 100 * np.arange(len(framePulseTimes))
+    nPulsesComparable = min(
+        len(framePulseTimes),
+        ((len(eye_frameTimes) - 1 - bestPhase) // 100) + 1
+    )
+    framePulseTimesUsed = framePulseTimes[:nPulsesComparable]
+    framePulseFrameNumbers = bestPhase + 100 * np.arange(nPulsesComparable)
 
-    for iPulse in range(len(framePulseTimes)):
+    for iPulse in range(nPulsesComparable):
         # at each edge calculate how much the systems have gone out of sync
         # and correct the next 100 frame times in loggedFrameTimes
-        tlTimeOfPulse = framePulseTimes[iPulse]
+        tlTimeOfPulse = framePulseTimesUsed[iPulse]
         eyecamTimeOfPulse = loggedFrameTimes[framePulseFrameNumbers[iPulse]]
         driftAtPulse = tlTimeOfPulse - eyecamTimeOfPulse
         # corrected logged times
-        if iPulse < len(framePulseTimes)-1:
+        if iPulse < nPulsesComparable - 1:
             loggedFrameTimes[framePulseFrameNumbers[iPulse]:framePulseFrameNumbers[iPulse]+100] += driftAtPulse
         else:
             loggedFrameTimes[framePulseFrameNumbers[iPulse]:] += driftAtPulse
