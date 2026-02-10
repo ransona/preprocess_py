@@ -173,7 +173,11 @@ def preprocess_pupil_run(userID, expID):
             fig, ax = plt.subplots()
             plt.show(block=False)
             
-        for iFrame in range(dlc_data.shape[0]):
+        total_frames = dlc_data.shape[0]
+        progress_milestones = (25, 50, 75, 100)
+        reported_milestones = set()
+
+        for iFrame in range(total_frames):
             # do QC to make sure the eye corners have been well detected
             pointsValid = validRegionMask[
                 np.ceil(eyeY[iFrame]).astype(int),
@@ -219,6 +223,8 @@ def preprocess_pupil_run(userID, expID):
                 # make a poly mask using the points
                 rr, cc = polygon(yVals, xVals)
                 eyeMask = np.zeros(frameSize)
+                rr = np.clip(rr, 0, eyeMask.shape[0] - 1)
+                cc = np.clip(cc, 0, eyeMask.shape[1] - 1)
                 eyeMask[rr, cc] = 1
 
                 # # check if each pupil point is in the eye mask and exclude it if not
@@ -381,6 +387,12 @@ def preprocess_pupil_run(userID, expID):
                     except:
                         z = 0
 
+            progress_percent = ((iFrame + 1) / total_frames) * 100
+            for milestone in progress_milestones:
+                if milestone not in reported_milestones and progress_percent >= milestone:
+                    print(f'{milestone}% complete')
+                    reported_milestones.add(milestone)
+
         # convert lists to arrays
         eyeDat['x'] = np.array(eyeDat['x'])
         eyeDat['y'] = np.array(eyeDat['y']) 
@@ -440,8 +452,8 @@ def main():
         #     '2025-07-08_05_ESPM152',  # sleep
         #     '2025-07-11_03_ESPM154']  # sleep
         # # experiment lists
-        allExpIDs = ['2026-01-20_02_ESRC027']
-        userID = 'adamranson'
+        allExpIDs = ['2026-01-29_01_ESRC027']
+        userID = 'rubencorreia'
 
         # allExpIDs_sleep = [
         #     '2025-07-04_06_ESPM154',
