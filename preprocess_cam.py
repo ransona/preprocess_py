@@ -7,7 +7,7 @@ import pickle
 from datetime import datetime
 
 def preprocess_cam_run(userID, expID):
-    debug_mode = True
+    debug_mode = False
     print('Starting preprocess_cam_run...')
     animalID, remote_repository_root, \
     processed_root, exp_dir_processed, \
