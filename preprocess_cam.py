@@ -56,7 +56,7 @@ def preprocess_cam_run(userID, expID):
             plt.ylabel('Voltage (volts)')
         else:
             print('The timing pulses on the eye camera look faulty')
-            raise Exception('The timing pulses on the eye camera look faulty - tunr on debug mode to see the figure')
+            raise Exception('The timing pulses on the eye camera look faulty - turn on debug mode to see the figure')
 
     # Shift the logged frame times to align with the frame pulse times
     # IMPORTANT: frame 100 is when the first low to high timing signal transition happens!
@@ -65,7 +65,7 @@ def preprocess_cam_run(userID, expID):
 
     # Periodically correct the logged frame times to align with the Timeline clock
     framePulseFrameNumbers = np.arange(100, len(framePulseTimes) * 200, 200)
-    max_diff = framePulseTimes[-1] - loggedFrameTimes[framePulseFrameNumbers[-1]]
+
     for iPulse in range(len(framePulseTimes)):
         # at each pulse calculate how much the systems have gone out of sync
         # and correct the next 200 frame times in loggedFrameTimes
@@ -88,18 +88,9 @@ def preprocess_cam_run(userID, expID):
 
 # for debugging:
 def main():
-    userID = 'pmateosaparicio'
+    userID = 'rubencorreia'
     expIDs = [
-        '2025-07-04_04_ESPM154',    # stim
-        '2025-07-07_05_ESPM154',    # stim
-        '2025-07-02_03_ESPM135',    # stim
-        '2025-07-08_04_ESPM152',    # stim
-        '2025-07-11_02_ESPM154',    # stim
-        '2025-07-04_06_ESPM154',    # sleep
-        '2025-07-07_06_ESPM154',    # sleep
-        '2025-07-02_05_ESPM135',    # sleep
-        '2025-07-08_05_ESPM152',    # sleep
-        '2025-07-11_03_ESPM154']    # sleep
+        '2026-01-19_06_ESRC023']
 
     for expID in expIDs:
         preprocess_cam_run(userID, expID)
