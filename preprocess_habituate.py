@@ -44,14 +44,6 @@ def preprocess_habituate_run(userID, expID):
         exp_dir_raw = organise_paths.find_paths(userID, expID)
     exp_dir_processed_recordings = os.path.join(processed_root, animalID, expID,'recordings')
 
-    if not os.path.exists(exp_dir_processed_recordings):
-        os.mkdir(exp_dir_processed_recordings)
-
-    # Create an empty marker file in the processed experiment directory
-    os.makedirs(exp_dir_processed, exist_ok=True)
-    empty_marker_path = os.path.join(exp_dir_processed, 'text.txt')
-    with open(empty_marker_path, 'w'):
-        pass
 
     # Move processed experiment to /data/common/habituation/<animalID>/
     habituation_root = os.path.join('/data', 'common', 'habituation')
