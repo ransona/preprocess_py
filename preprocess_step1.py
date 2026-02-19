@@ -3,6 +3,7 @@ import organise_paths
 import subprocess
 import sys
 import preprocess_pupil
+import preprocess_habituate
 import pickle
 from datetime import datetime
 
@@ -172,7 +173,9 @@ def run_preprocess_step1(jobID,userID, expID, suite2p_config, runs2p, rundlc, ru
     # with open('/data/common/queues/step1/logs/' + jobID[0:-1-6] + '.txt', 'a') as file:
     #     file.write(allOut)
 
-    #if queued_command['config']['runhabituate']:
+    if queued_command['config']['runhabituate']:
+        print('Running habituation setup processing...')
+        preprocess_habituate.preprocess_habituate_run(userID,expID)
 
 
 # for debugging:
