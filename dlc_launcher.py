@@ -149,7 +149,7 @@ def dlc_launcher_run(userID, expID):
     destfolder = exp_dir_processed
     if os.path.exists(left_video):
         print('Starting left eye video...')
-        deeplabcut.analyze_videos(config_path, left_video, shuffle=3, gputouse=0, save_as_csv=True, destfolder=destfolder)
+        deeplabcut.analyze_videos(config_path, left_video, shuffle=5, gputouse=0, save_as_csv=True, destfolder=destfolder)
     else:
         print('Skipping left eye video (file not found).')
 
@@ -157,7 +157,7 @@ def dlc_launcher_run(userID, expID):
     destfolder = exp_dir_processed
     if os.path.exists(right_video):
         print('Starting right eye video...')
-        deeplabcut.analyze_videos(config_path, right_video, shuffle=3, gputouse=0, save_as_csv=True, destfolder=destfolder)
+        deeplabcut.analyze_videos(config_path, right_video, shuffle=5, gputouse=0, save_as_csv=True, destfolder=destfolder)
     else:
         print('Skipping right eye video (file not found).')
 
