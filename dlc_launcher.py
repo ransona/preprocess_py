@@ -88,7 +88,6 @@ def crop_vids(userID, expID):
             # --- Habituation: single-eye full-frame crop ---
             x, y, h, w = habit_crop
             habit_frame = frame[y:y + h, x:x + w]
-            habit_frame = cv2.flip(habit_frame, 1)
             habit_out.write(habit_frame)
         else:
             # --- Left eye crop (unchanged behavior) ---
