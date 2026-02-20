@@ -46,8 +46,8 @@ def preprocess_pupil_run(userID, expID):
     #                 expID + '_eye1_rightDLC_resnet50_Trial_newMay19shuffle1_1030000.csv']
     
     # 05.02.26 - new model
-    dlc_filenames = [expID + '_eye1_leftDLC_Resnet50_all_setupsDec10shuffle3_snapshot_best-80.csv',
-                    expID + '_eye1_rightDLC_Resnet50_all_setupsDec10shuffle3_snapshot_best-80.csv']    
+    dlc_filenames = [expID + '_eye1_leftDLC_Resnet50_all_setupsDec10shuffle5_snapshot_best-110.csv',
+                    expID + '_eye1_rightDLC_Resnet50_all_setupsDec10shuffle5_snapshot_best-110.csv']    
 
     vid_filenames = [expID + '_eye1_left.avi',
                     expID + '_eye1_right.avi']
@@ -452,8 +452,8 @@ def main():
         #     '2025-07-08_05_ESPM152',  # sleep
         #     '2025-07-11_03_ESPM154']  # sleep
         # # experiment lists
-        allExpIDs = ['2026-01-29_01_ESRC027']
-        userID = 'rubencorreia'
+        allExpIDs = ['2026-01-19_01_ESRC026']
+        userID = 'adamranson'
 
         # allExpIDs_sleep = [
         #     '2025-07-04_06_ESPM154',

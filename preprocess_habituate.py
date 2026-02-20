@@ -14,27 +14,30 @@ import os
 import pickle
 import shutil
 import stat
+import grp
 import organise_paths
 
 
 def apply_data_permissions_recursive(target_path):
-    """Apply /data ownership and mode recursively to target_path."""
-    data_stat = os.stat('/data')
-    data_mode = stat.S_IMODE(data_stat.st_mode)
-    data_uid = data_stat.st_uid
-    data_gid = data_stat.st_gid
+    """Set group ownership to 'users' and grant group read/write recursively."""
+    users_gid = grp.getgrnam("users").gr_gid
 
+    def _apply_permissions(path):
+        current_mode = stat.S_IMODE(os.stat(path).st_mode)
+        group_rw = stat.S_IRGRP | stat.S_IWGRP
+        if os.path.isdir(path):
+            # Directories need execute bit for group traversal/access.
+            os.chmod(path, current_mode | group_rw | stat.S_IXGRP)
+        else:
+            os.chmod(path, current_mode | group_rw)
+        os.chown(path, -1, users_gid)
+
+    _apply_permissions(target_path)
     for root, dirs, files in os.walk(target_path):
-        os.chmod(root, data_mode)
-        os.chown(root, data_uid, data_gid)
         for dir_name in dirs:
-            dir_path = os.path.join(root, dir_name)
-            os.chmod(dir_path, data_mode)
-            os.chown(dir_path, data_uid, data_gid)
+            _apply_permissions(os.path.join(root, dir_name))
         for file_name in files:
-            file_path = os.path.join(root, file_name)
-            os.chmod(file_path, data_mode)
-            os.chown(file_path, data_uid, data_gid)
+            _apply_permissions(os.path.join(root, file_name))
 
 
 def preprocess_habituate_run(userID, expID):
@@ -77,8 +80,8 @@ def main():
         # debug mode
         print('Parameters received via debug mode')
         # # experiment lists
-        allExpIDs = ['2025-11-28_02_ESRC026']
-        userID = 'rubencorreia'   
+        allExpIDs = ['2026-01-19_01_ESRC026']
+        userID = 'adamranson'   
         
         for expID in allExpIDs:
             preprocess_habituate_run(userID, expID)    

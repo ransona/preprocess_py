@@ -6,7 +6,7 @@ def find_paths(userID, expID):
     if str(userID).lower() == 'habit':
         # Habituation data lives under a shared path per animal.
         processed_root = os.path.join('/data/common/habituation')
-        exp_dir_processed = os.path.join(processed_root, animalID)
+        exp_dir_processed = os.path.join(processed_root, animalID, expID)
         exp_dir_raw = exp_dir_processed
     else:
         # path to root of processed data
