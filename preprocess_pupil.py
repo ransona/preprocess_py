@@ -36,7 +36,7 @@ def preprocess_pupil_run(userID, expID):
     displayInterval = 1000
     
     # this should be set high once model is working
-    pupil_likelihood_threshold = 0
+    pupil_likelihood_threshold = 0.80
     print('WARNING: pupil pupil_likelihood_threshold = 0. Set higher once model working!')
 
 

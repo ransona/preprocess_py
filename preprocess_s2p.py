@@ -481,7 +481,7 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
         #                of neuron timestamps that are very close in time. This can cause swapping of neuron order!
         all_tokenised_dF_spikes[iCh] = all_tokenised_dF_spikes[iCh][np.lexsort((all_tokenised_dF_spikes[iCh][:, 0], np.round(all_tokenised_dF_spikes[iCh][:, 1], 9)))]
         # type cast
-        ca_data_tokenised['tokenised_oasis_spikes'] = all_tokenised_dF_spikes[iCh].astype(np.float32)
+        ca_data_tokenised['all_tokenised_dF_spikes'] = all_tokenised_dF_spikes[iCh].astype(np.float32)
         
         # other data
         ca_data['Depths']       = allDepths[iCh]
@@ -506,47 +506,16 @@ def run_preprocess_s2p(userID, expID, neuropil_coeff_config = np.nan):
 
 # for debugging:
 def main():
-    # debug mode
-    # allExpIDs = [
-    # '2025-03-12_01_ESPM126', 
-    # '2025-03-13_02_ESPM126',
-    # '2025-03-26_01_ESPM126', '2025-03-26_02_ESPM126',
-    # '2025-04-01_01_ESPM127', 
-    '2025-04-01_02_ESPM127',
-    # '2025-06-12_02_ESPM135', '2025-06-12_04_ESPM135',
-    # '2025-06-13_01_ESPM135', '2025-06-13_02_ESPM135',
-    # '2025-07-02_03_ESPM135', '2025-07-02_05_ESPM135',
-    # '2025-07-08_04_ESPM152', '2025-07-08_05_ESPM152',
-    # '2025-07-04_04_ESPM154', '2025-07-04_06_ESPM154',
-    # '2025-07-07_05_ESPM154', '2025-07-07_06_ESPM154',
-    # '2025-07-11_02_ESPM154', '2025-07-11_03_ESPM154',
-    # # rivalry
-    # '2025-07-17_01_ESPM154', '2025-07-17_04_ESPM154',
-    # '2025-08-07_01_ESPM163', '2025-08-07_05_ESPM163',
-    # '2025-08-12_01_ESPM164', '2025-08-12_04_ESPM164'
-    # ]
-    # userID = 'pmateosaparicio'
-
-    # for expID in allExpIDs:    
-    #     run_preprocess_s2p(userID, expID, neuropil_coeff_config=[0.7 , 0.7]) 
-
     allExpIDs = [
-    # rivalry
-    '2025-07-17_01_ESPM154', '2025-07-17_04_ESPM154',
-    '2025-08-07_01_ESPM163', '2025-08-07_05_ESPM163',
-    '2025-08-12_01_ESPM164', '2025-08-12_04_ESPM164'
+        '2025-07-04_04_ESPM154',	'2025-07-04_06_ESPM154', 
+        '2025-04-01_01_ESPM127',	'2025-04-01_02_ESPM127', 
+        '2025-07-07_05_ESPM154',	'2025-07-07_06_ESPM154', 
+        '2025-07-11_02_ESPM154',	'2025-07-11_03_ESPM154',
     ]
-    userID = 'melinatimplalexi'
+    userID = 'pmateosaparicio'
 
     for expID in allExpIDs:    
         run_preprocess_s2p(userID, expID, neuropil_coeff_config=[0.7 , 0.7])         
-
-    allExpIDs = [
-    '2025-02-26_02_ESPM126']
-    userID = 'adamranson'    
-
-    for expID in allExpIDs:    
-        run_preprocess_s2p(userID, expID, neuropil_coeff_config=[0.7 , 0.7]) 
 
 
 if __name__ == "__main__":
