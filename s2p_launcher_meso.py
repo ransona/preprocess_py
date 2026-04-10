@@ -8,6 +8,15 @@ import numpy as np
 import os
 import shutil
 
+def fix_binary_permissions(save_root):
+    """Ensure moved Suite2p binary files remain group-writable."""
+    for dirpath, _, filenames in os.walk(save_root):
+        for filename in filenames:
+            if filename in {"data.bin", "data_chan2.bin"}:
+                path = os.path.join(dirpath, filename)
+                mode = os.stat(path).st_mode & 0o777
+                os.chmod(path, mode | 0o020)
+
 def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
     # determine if several experiments are being run together or not:
 
@@ -43,7 +52,8 @@ def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
             'fast_disk': os.path.join('/data/fast/s2p/')
             }
         ops['functional_chan']=1
-        suite2p.run_s2p(ops=ops, db=db)  
+        suite2p.run_s2p(ops=ops, db=db)
+        fix_binary_permissions(output_path)
         # run red ch
         # can be improved to avoid registering twice and making two copies of data!
         db = {
@@ -53,7 +63,8 @@ def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
             'fast_disk': os.path.join('/data/fast/s2p/')
             }
         ops['functional_chan']=2
-        suite2p.run_s2p(ops=ops, db=db)    
+        suite2p.run_s2p(ops=ops, db=db)
+        fix_binary_permissions(os.path.join(output_path,'ch2'))
     else:
         # then we are running on 1 functional channel (this is a hack to encode this info)
         # run green ch
@@ -63,7 +74,8 @@ def s2p_launcher_run(userID,expID,tif_path,output_path,config_path):
             #'save_disk': exp_dir_processed, # where bin is moved after processing
             'fast_disk': os.path.join('/data/fast/s2p/')
             }
-        suite2p.run_s2p(ops=ops, db=db)  
+        suite2p.run_s2p(ops=ops, db=db)
+        fix_binary_permissions(output_path)
             
 
 # for debugging:
